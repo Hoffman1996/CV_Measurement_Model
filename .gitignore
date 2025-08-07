@@ -1,0 +1,41 @@
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environment
+venv/
+.env/
+.env.bak/
+*.env
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Logs and runtime files
+*.log
+
+# Calibration / intermediate data
+*.yaml
+*.json
+*.ckpt
+
+# Model output / checkpoints
+runs/
+weights/
+output/
+checkpoints/
+
+# Roboflow & datasets (if auto-downloaded or archived)
+datasets/
+archive/
+florence_labels/
+images_for_florence/
+
+# VSCode settings (optional)
+.vscode/
