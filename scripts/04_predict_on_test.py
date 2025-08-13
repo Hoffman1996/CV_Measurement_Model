@@ -1,3 +1,4 @@
+#   04_predict_on_test.py
 from scipy import stats
 from ultralytics import YOLO
 import cv2
@@ -13,8 +14,8 @@ def predict_on_test_images():
     test_images_dir = "datasets/yolo_dataset/test/images"  # Assuming you have test split
     test_labels_dir = "datasets/yolo_dataset/test/labels"  # For comparison if available
     output_dir = "test_predictions"
-    confidence_threshold = 0.25
-    iou_threshold = 0.5
+    confidence_threshold = 0.8   # Higher confidence = fewer false positives
+    iou_threshold = 0.6          # Lower IoU = less merging of nearby detections
     
     # Class names
     class_names = ['frame']
@@ -70,12 +71,15 @@ def predict_on_test_images():
         
         # Make prediction
         results = model.predict(
-            task='obb', # Use 'obb' for oriented bounding boxes
+            task='obb',
             source=str(img_path),
             conf=confidence_threshold,
             iou=iou_threshold,
             save=False,
-            verbose=False
+            verbose=False,
+            max_det=10,              # Limit maximum detections per image
+            agnostic_nms=True,       # Class-agnostic NMS
+            retina_masks=True        # Higher quality masks
         )
         
         # Process results
@@ -129,8 +133,7 @@ def predict_on_test_images():
         f.write(f"Total images processed: {stats['total_images']}\n")
         f.write(f"Images with detections: {stats['images_with_detections']} ({stats['images_with_detections']/stats['total_images']*100:.1f}%)\n")
         f.write(f"Total detections: {stats['total_detections']}\n")
-        f.write(f"Window detections: {stats['window_detections']}\n")
-        f.write(f"Door detections: {stats['door_detections']}\n")
+        f.write(f"Frame detections: {stats['frame_detections']}\n")
         f.write(f"Average detections per image: {stats['total_detections']/stats['total_images']:.2f}\n")
     
     print(f"Summary saved to: {summary_file}")

@@ -1,0 +1,14 @@
+=== YOLO TRAINING SUMMARY ===
+Model Architecture: yolov8s-obb.pt
+Dataset: datasets/yolo_dataset/data.yaml
+Classes: {0: 'frame'}
+Training Images: 129
+Validation Images: 37
+Test Images: 18
+Total Images: 184
+Dataset Split: Train 70.1% | Val 20.1% | Test 9.8%
+Epochs: 150
+Batch Size: 16
+Image Size: 640
+Best Model: yolo_training_output\yolov8s-obb_frame_detector2/weights/best.pt
+Training Results Directory: yolo_training_output\yolov8s-obb_frame_detector2

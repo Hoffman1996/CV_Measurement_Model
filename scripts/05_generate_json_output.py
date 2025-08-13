@@ -1,3 +1,4 @@
+#   05_generate_json_output.py
 from ultralytics import YOLO
 import cv2
 import numpy as np
@@ -95,9 +96,9 @@ def calculate_real_world_measurements(bbox_pixels, charuco_corners, charuco_ids,
         # Find intersection with z=0 plane (ChArUco board plane)
         # This is a simplified approach - assumes board is roughly parallel to detection plane
         scale = -tvec[2] / corner_normalized[1] if corner_normalized[1] != 0 else 1
-        x_3d = corner_normalized[0] * scale + tvec[0]
-        y_3d = corner_normalized[1] * scale + tvec[1]
-        z_3d = 0  # On the board plane
+        x_3d = float(corner_normalized[0] * scale + tvec[0][0])
+        y_3d = float(corner_normalized[1] * scale + tvec[1][0])
+        z_3d = 0.0  # On the board plane
         
         bbox_corners_3d.append([x_3d, y_3d, z_3d])
     
@@ -105,21 +106,17 @@ def calculate_real_world_measurements(bbox_pixels, charuco_corners, charuco_ids,
     # Ensure numpy array and handle polygons with more than 4 points
     bbox_corners_3d = np.array(bbox_corners_3d, dtype=float)
 
-    if bbox_corners_3d.shape[0] != 4:
-        # Compute bounding rectangle from all points
-        min_x, min_y, min_z = bbox_corners_3d.min(axis=0)
-        max_x, max_y, max_z = bbox_corners_3d.max(axis=0)
-        bbox_corners_3d = np.array([
-            [min_x, min_y, min_z],
-            [max_x, min_y, min_z],
-            [max_x, max_y, min_z],
-            [min_x, max_y, min_z]
-        ], dtype=float)
+    if bbox_corners_3d.shape != (4, 3):
+        print(f"Warning: Expected (4,3) shape, got {bbox_corners_3d.shape}")
+        return None
 
-
-    # Calculate width and height in meters
-    width_m = np.linalg.norm(bbox_corners_3d[1] - bbox_corners_3d[0])
-    height_m = np.linalg.norm(bbox_corners_3d[3] - bbox_corners_3d[0])
+   # Calculate width and height in meters
+    try:
+        width_m = np.linalg.norm(bbox_corners_3d[1] - bbox_corners_3d[0])
+        height_m = np.linalg.norm(bbox_corners_3d[3] - bbox_corners_3d[0])
+    except Exception as e:
+        print(f"Error calculating dimensions: {e}")
+        return None
     
     return {
         'width_m': float(width_m),
@@ -144,7 +141,7 @@ def process_s20plus_image(image_path, model, calib_data, confidence_threshold=0.
     
     detections = []
     
-    for i, box in enumerate(result.boxes):
+    for i, box in enumerate(result.obb):
         class_id = int(box.cls[0])
         confidence = float(box.conf[0])
         bbox = box.xyxy[0].cpu().numpy()  # [x1, y1, x2, y2]
@@ -197,7 +194,7 @@ def generate_json_output():
     s20plus_images_dir = "s20plus_images_with_ChArUco"
     calib_file = "config/s20plus_calib.yaml"
     output_file = "detection_results.json"
-    confidence_threshold = 0.25
+    confidence_threshold = 0.75
     
     # === LOAD MODEL AND CALIBRATION ===
     if not os.path.exists(model_path):

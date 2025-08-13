@@ -1,12 +1,11 @@
 YOLO MODEL PREDICTION SUMMARY
 ========================================
 Model used: yolo_training_output/yolov8s-obb_frame_detector/weights/best.pt
-Confidence threshold: 0.25
-IoU threshold: 0.5
+Confidence threshold: 0.8
+IoU threshold: 0.6
 Test images directory: datasets/yolo_dataset/test/images
 Total images processed: 18
 Images with detections: 18 (100.0%)
-Total detections: 23
-Window detections: 23
-Door detections: 0
-Average detections per image: 1.28
+Total detections: 18
+Frame detections: 18
+Average detections per image: 1.00

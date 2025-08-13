@@ -1,3 +1,4 @@
+#   03_train_yolo.py
 from ultralytics import YOLO
 import os
 from pathlib import Path
@@ -10,8 +11,8 @@ def train_yolo_model():
     model_arch = 'yolov8s-obb.pt'  # object detection with oriented bounding boxes
     data_yaml = 'datasets/yolo_dataset/data.yaml'
     imgsz = 640  # Image size for training 640x640
-    epochs = 100  # Increased for better convergence
-    batch = 8    # Adjust based on your GPU memory
+    epochs = 150  # Increased for better convergence
+    batch = 16    # Adjust based on your GPU memory
     project = 'yolo_training_output'
     name = 'yolov8s-obb_frame_detector'
 
@@ -115,7 +116,7 @@ def train_yolo_model():
         save=True,
         plots=True,
         val=True,
-        patience=20,  # Early stopping patience to prevent overfitting
+        patience=30,  # Early stopping patience to prevent overfitting
         device=yolo_device,  # Use GPU if available
         workers=4,  # Number of worker threads
         optimizer='AdamW',  # Modern optimizer
@@ -125,12 +126,15 @@ def train_yolo_model():
         augment=True,           # Enable/force augmentations
         fliplr=0.5,             # Horizontal flip probability
         flipud=0.0,             # Vertical flip probability
-        hsv_h=0.015,            # HSV hue augmentation
-        hsv_s=0.7,              # HSV saturation augmentation
-        hsv_v=0.4,              # HSV value augmentation
-        erasing=0.4,            # Random erasing probability
-        mixup=0.0,              # Mixup augmentation
-        copy_paste=0.0,  
+        hsv_h=0.01,             # Reduce HSV hue augmentation (was too aggressive)
+        hsv_s=0.5,              # Reduce HSV saturation augmentation
+        hsv_v=0.3,              # Reduce HSV value augmentation
+        erasing=0.2,            # Reduce random erasing (was removing too much)
+        mixup=0.1,              # Add slight mixup for better generalization
+        copy_paste=0.1,         # Add copy-paste augmentation for object detection
+        mosaic=0.5,             # Add mosaic augmentation
+        scale=0.8,              # Scale augmentation range
+        translate=0.1,          
     )
 
     # === TRAINING RESULTS ===
