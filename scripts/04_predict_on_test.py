@@ -8,7 +8,7 @@ import numpy as np
 def predict_on_test_images():
     # === CONFIGURATION ===
     # Update this path after training is complete
-    model_path = "yolo_training_output/yolov8n_window_door_detector/weights/best.pt"
+    model_path = "yolo_training_output/yolov8s_window_door_detector/weights/best.pt"
     test_images_dir = "datasets/yolo_dataset/test/images"  # Assuming you have test split
     test_labels_dir = "datasets/yolo_dataset/test/labels"  # For comparison if available
     output_dir = "test_predictions"
@@ -70,6 +70,7 @@ def predict_on_test_images():
         
         # Make prediction
         results = model.predict(
+            task='obb', # Use 'obb' for oriented bounding boxes
             source=str(img_path),
             conf=confidence_threshold,
             iou=iou_threshold,

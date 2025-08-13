@@ -101,8 +101,22 @@ def calculate_real_world_measurements(bbox_pixels, charuco_corners, charuco_ids,
         
         bbox_corners_3d.append([x_3d, y_3d, z_3d])
     
-    bbox_corners_3d = np.array(bbox_corners_3d)
-    
+    # bbox_corners_3d = np.array(bbox_corners_3d)
+    # Ensure numpy array and handle polygons with more than 4 points
+    bbox_corners_3d = np.array(bbox_corners_3d, dtype=float)
+
+    if bbox_corners_3d.shape[0] != 4:
+        # Compute bounding rectangle from all points
+        min_x, min_y, min_z = bbox_corners_3d.min(axis=0)
+        max_x, max_y, max_z = bbox_corners_3d.max(axis=0)
+        bbox_corners_3d = np.array([
+            [min_x, min_y, min_z],
+            [max_x, min_y, min_z],
+            [max_x, max_y, min_z],
+            [min_x, max_y, min_z]
+        ], dtype=float)
+
+
     # Calculate width and height in meters
     width_m = np.linalg.norm(bbox_corners_3d[1] - bbox_corners_3d[0])
     height_m = np.linalg.norm(bbox_corners_3d[3] - bbox_corners_3d[0])
