@@ -36,9 +36,12 @@ datasets/
 archive/
 florence_labels/
 images_for_florence/
+s20plus_images_with_ChArUco/
 
 # VSCode settings (optional)
 .vscode/
 
 # Files
-Git quick‑guide.txt
+Git quick‑guide.md
+summary.md
+DECISION MAKING AND REASONING.md

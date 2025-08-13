@@ -13,7 +13,7 @@ def train_yolo_model():
     epochs = 100  # Increased for better convergence
     batch = 8    # Adjust based on your GPU memory
     project = 'yolo_training_output'
-    name = 'yolov8s-obb_window_door_detector'
+    name = 'yolov8s-obb_frame_detector'
 
     # Create output directory
     os.makedirs(project, exist_ok=True)

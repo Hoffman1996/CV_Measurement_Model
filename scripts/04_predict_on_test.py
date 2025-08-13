@@ -1,3 +1,4 @@
+from scipy import stats
 from ultralytics import YOLO
 import cv2
 import os
@@ -8,7 +9,7 @@ import numpy as np
 def predict_on_test_images():
     # === CONFIGURATION ===
     # Update this path after training is complete
-    model_path = "yolo_training_output/yolov8s_window_door_detector/weights/best.pt"
+    model_path = "yolo_training_output/yolov8s-obb_frame_detector/weights/best.pt"
     test_images_dir = "datasets/yolo_dataset/test/images"  # Assuming you have test split
     test_labels_dir = "datasets/yolo_dataset/test/labels"  # For comparison if available
     output_dir = "test_predictions"
@@ -16,7 +17,7 @@ def predict_on_test_images():
     iou_threshold = 0.5
     
     # Class names
-    class_names = ['window', 'door']
+    class_names = ['frame']
     
     # Create output directory
     os.makedirs(output_dir, exist_ok=True)
@@ -54,8 +55,7 @@ def predict_on_test_images():
         'total_images': len(test_images),
         'images_with_detections': 0,
         'total_detections': 0,
-        'window_detections': 0,
-        'door_detections': 0
+        'frame_detections': 0
     }
     
     # === PROCESS EACH IMAGE ===
@@ -81,28 +81,24 @@ def predict_on_test_images():
         # Process results
         result = results[0]  # Get first (and only) result
         
-        if len(result.boxes) > 0:
+        if len(result.obb) > 0:
             stats['images_with_detections'] += 1
-            stats['total_detections'] += len(result.boxes)
+            stats['total_detections'] += len(result.obb)
             
             # Create visualization
             annotated_image = result.plot(conf=True, labels=True, boxes=True)
             
             # Count detections by class
-            for box in result.boxes:
-                class_id = int(box.cls[0])
-                if class_id == 0:  # window
-                    stats['window_detections'] += 1
-                elif class_id == 1:  # door
-                    stats['door_detections'] += 1
+            for box in result.obb:
+                stats['frame_detections'] += 1
             
             # Save annotated image
             output_path = os.path.join(output_dir, f"pred_{img_path.name}")
             cv2.imwrite(output_path, annotated_image)
             
             # Print detection details
-            print(f"  Detections found: {len(result.boxes)}")
-            for j, box in enumerate(result.boxes):
+            print(f"  Detections found: {len(result.obb)}")
+            for j, box in enumerate(result.obb):
                 class_id = int(box.cls[0])
                 confidence = float(box.conf[0])
                 bbox = box.xyxy[0].cpu().numpy()
@@ -117,8 +113,7 @@ def predict_on_test_images():
     print(f"Total images processed: {stats['total_images']}")
     print(f"Images with detections: {stats['images_with_detections']} ({stats['images_with_detections']/stats['total_images']*100:.1f}%)")
     print(f"Total detections: {stats['total_detections']}")
-    print(f"Window detections: {stats['window_detections']}")
-    print(f"Door detections: {stats['door_detections']}")
+    print(f"Frame detections: {stats['frame_detections']}")
     print(f"Average detections per image: {stats['total_detections']/stats['total_images']:.2f}")
     print(f"Annotated images saved to: {output_dir}")
     

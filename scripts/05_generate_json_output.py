@@ -152,7 +152,7 @@ def process_s20plus_image(image_path, model, calib_data, confidence_threshold=0.
         detection = {
             'detection_id': i,
             'class_id': class_id,
-            'class_name': 'window' if class_id == 0 else 'door',
+            'class_name': model.names[class_id],
             'confidence': confidence,
             'bbox_pixels': {
                 'x1': float(bbox[0]),
@@ -193,7 +193,7 @@ def generate_json_output():
     """Main function to process S20+ images and generate JSON output"""
     
     # === CONFIGURATION ===
-    model_path = "yolo_training_output/yolov8n_window_door_detector/weights/best.pt"
+    model_path = "yolo_training_output/yolov8s-obb_frame_detector/weights/best.pt"
     s20plus_images_dir = "s20plus_images_with_ChArUco"
     calib_file = "config/s20plus_calib.yaml"
     output_file = "detection_results.json"
