@@ -1,0 +1,104 @@
+Final Project: Computer Vision System for Window Detection and Measurement
+Project Scope
+Use smartphone photos to detect windows and extract their physical measurements via calibrated computer vision models, integrating into a reactive GCP backend.
+Phase 1: Project Setup and Goals
+Goals:
+- Detect a window in an image using an object detection model (YOLO).
+- Use camera calibration and geometry to convert the detected bounding box into real-world dimensions.
+- Ensure integration with a reactive GCP server using a non-blocking architecture.
+- Design a process that’s user-friendly for non-technical people.
+
+Early Constraints:
+- Use a Samsung S20+ phone as the reference device for calibration.
+- Later allow use of images from other phones for window detection only (not measurement).
+- Precise accuracy is a must (bounding boxes must match window frames tightly).
+- Solution must be demonstrable, robust, and clean for final project presentation.
+Phase 2: Dataset Structuring and Tooling
+Folder Structure Decisions:
+- charuco_images/calibration_set/: Holds S20+ photos with ChArUco board for calibration
+- s20plus_images_with_ChArUco/: Original raw images from S20+ with board
+- datasets/yolo_dataset/: Clean YOLO dataset with labeled train/ and valid/ sets
+- scripts/: Python scripts for calibration, labeling, training, inference
+- config/s20plus_calib.yaml: Stores camera matrix, distortion coefficients
+
+Tools Used:
+- OpenCV + ArUco + ChArUco: For camera calibration and semi-auto labeling
+- YOLOv8: Chosen for real-time window detection (small + accurate)
+- Roboflow: Used for manual and auto-labeling
+- Florence-2: Explored as a powerful open-vocab auto-labeling tool
+- VSCode + venv: Chosen development environment for flexibility and GPU use
+Phase 3: Key Technical Decisions & Justifications
+Calibration Process:
+- Use 5x5 ChArUco board with 40mm squares & 30mm markers
+- Calibrate only with Samsung S20+
+- Saved output to s20plus_calib.yaml
+
+Dataset Labeling Strategy:
+- Use manual labeling (Roboflow) for YOLO training
+- Use Florence-2 as an optional auto-labeling assistant
+- Do not include ChArUco board in YOLO training images
+
+Dataset Structure:
+- YOLO dataset split: 80% train / 20% validation
+- No test set yet — can be added later
+- Labels follow YOLO format: class_id x_center y_center width height
+Phase 4: Model Development & Training Plan
+Object Detection (YOLOv8):
+- Use YOLOv8n
+- Training resolution: imgsz=640
+- Config file: data.yaml
+- Florence-2 labels verified manually
+
+Measurement Extraction Plan (Upcoming):
+- Use YOLOv8 output (bounding box) + camera matrix
+- Limit measurement extraction to S20+ images with ChArUco
+- Use perspective geometry to extract dimensions
+Tooling Summary
+Tool | Use
+-----|-----
+OpenCV + ArUco | Calibration and image undistortion
+YOLOv8 + Ultralytics | Window detection
+Roboflow | Manual and AI-assisted annotation
+Florence-2 | Auto-labeling with verification
+VSCode + venv + pip | Development environment
+YAML (calib + data) | Config files for camera and YOLO training
+Notes and Decisions in Progress
+Question | Decision
+--------|---------
+Should window detection training include ChArUco? | ❌ No
+Is Florence-2 accurate enough? | ✅ Yes, with manual verification
+Can images from multiple phones be used? | ✅ Yes for YOLO, ❌ No for measurements unless calibrated
+Will we train a second model for measurement? | TBD
+Will we save processed images or JSONs? | ✅ Yes
+Current Folder Structure (Cleaned Up)
+CV_MODEL_CHARUCO/
+├── calibration/
+│   └── calibrate_camera.py
+├── charuco_images/
+│   └── calibration_set/
+├── config/
+│   └── s20plus_calib.yaml
+├── datasets/
+│   └── yolo_dataset/
+│       ├── train/
+│       ├── valid/
+│       └── data.yaml
+├── s20plus_images_with_ChArUco/
+├── scripts/
+│   ├── 01_calibrate_camera.py
+│   ├── 02_generate_labels.py
+│   ├── 03_train_yolo.py
+│   ├── 04_predict_on_test.py
+│   ├── 05_generate_json_output.py
+│   ├── manual_bbox_labeler.py
+│   └── visualize_yolo_labels.py
+├── README.md
+├── requirements.txt
+└── venv/
+Summary of Your Current Position
+- A calibrated camera (S20+)
+- A high-quality labeled dataset
+- A clean structure for training YOLOv8
+- A plan for extracting real dimensions based on calibration
+- A validated auto-labeling method (Florence-2 + manual review)
+- An environment set up for GPU training and development
