@@ -8,13 +8,13 @@ import torch
 
 def train_yolo_model():
     # === CONFIGURATION ===
-    model_arch = 'yolov8s-obb.pt'  # object detection with oriented bounding boxes
+    model_arch = 'yolo11s-seg.pt'  # YOLOv11 segmentation model
     data_yaml = 'datasets/yolo_dataset/data.yaml'
     imgsz = 640  # Image size for training 640x640
-    epochs = 150  # Increased for better convergence
+    epochs = 100  # Increased for better convergence
     batch = 16    # Adjust based on your GPU memory
     project = 'yolo_training_output'
-    name = 'yolov8s-obb_frame_detector'
+    name = 'yolo11s-seg_frame_detector'
 
     # Create output directory
     os.makedirs(project, exist_ok=True)
@@ -106,7 +106,7 @@ def train_yolo_model():
 
     print("Starting training...")
     results = model.train(
-        task='obb',  # Use 'obb' for oriented bounding boxes
+        task='segment',  # Use 'segment' for segmentation
         data=data_yaml,
         epochs=epochs,
         imgsz=imgsz,
@@ -149,16 +149,23 @@ def train_yolo_model():
         best_model = YOLO(f"{results.save_dir}/weights/best.pt")
         metrics = best_model.val()
 
-        print(f"mAP50: {metrics.box.map50:.4f}")
-        print(f"mAP50-95: {metrics.box.map:.4f}")
-        print(f"Precision: {metrics.box.mp:.4f}")
-        print(f"Recall: {metrics.box.mr:.4f}")
+        # Segmentation metrics
+        print(f"Box mAP50: {metrics.box.map50:.4f}")
+        print(f"Box mAP50-95: {metrics.box.map:.4f}")
+        print(f"Mask mAP50: {metrics.seg.map50:.4f}")
+        print(f"Mask mAP50-95: {metrics.seg.map:.4f}")
+        print(f"Box Precision: {metrics.box.mp:.4f}")
+        print(f"Box Recall: {metrics.box.mr:.4f}")
+        print(f"Mask Precision: {metrics.seg.mp:.4f}")
+        print(f"Mask Recall: {metrics.seg.mr:.4f}")
 
         # Class-specific metrics
         if hasattr(metrics.box, 'ap_class_index') and metrics.box.ap_class_index is not None:
             for i, class_name in enumerate(data_config['names']):
                 if i < len(metrics.box.ap50):
-                    print(f"{class_name} - AP50: {metrics.box.ap50[i]:.4f}")
+                    print(f"{class_name} - Box AP50: {metrics.box.ap50[i]:.4f}")
+                if i < len(metrics.seg.ap50):
+                    print(f"{class_name} - Mask AP50: {metrics.seg.ap50[i]:.4f}")
 
     except Exception as e:
         print(f"Error getting detailed metrics: {e}")

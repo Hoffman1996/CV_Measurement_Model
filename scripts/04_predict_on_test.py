@@ -10,7 +10,7 @@ import numpy as np
 def predict_on_test_images():
     # === CONFIGURATION ===
     # Update this path after training is complete
-    model_path = "yolo_training_output/yolov8s-obb_frame_detector/weights/best.pt"
+    model_path = "yolo_training_output/yolo11s-seg_frame_detector/weights/best.pt"
     test_images_dir = "datasets/yolo_dataset/test/images"  # Assuming you have test split
     test_labels_dir = "datasets/yolo_dataset/test/labels"  # For comparison if available
     output_dir = "test_predictions"
@@ -71,7 +71,7 @@ def predict_on_test_images():
         
         # Make prediction
         results = model.predict(
-            task='obb',
+            task='segment',         # Changed from 'obb' to 'segment'
             source=str(img_path),
             conf=confidence_threshold,
             iou=iou_threshold,
@@ -85,28 +85,38 @@ def predict_on_test_images():
         # Process results
         result = results[0]  # Get first (and only) result
         
-        if len(result.obb) > 0:
+        if len(result.boxes) > 0:  # Changed from result.obb to result.boxes
             stats['images_with_detections'] += 1
-            stats['total_detections'] += len(result.obb)
+            stats['total_detections'] += len(result.boxes)
             
-            # Create visualization
-            annotated_image = result.plot(conf=True, labels=True, boxes=True)
+            # Create visualization with both boxes and masks
+            annotated_image = result.plot(conf=True, labels=True, boxes=True, masks=True)
             
             # Count detections by class
-            for box in result.obb:
+            for box in result.boxes:
                 stats['frame_detections'] += 1
             
             # Save annotated image
             output_path = os.path.join(output_dir, f"pred_{img_path.name}")
             cv2.imwrite(output_path, annotated_image)
             
+            # Save mask overlay separately
+            mask_output_path = os.path.join(output_dir, f"mask_{img_path.name}")
+            save_mask_overlay(image, result, mask_output_path)
+            
             # Print detection details
-            print(f"  Detections found: {len(result.obb)}")
-            for j, box in enumerate(result.obb):
+            print(f"  Detections found: {len(result.boxes)}")
+            for j, box in enumerate(result.boxes):
                 class_id = int(box.cls[0])
                 confidence = float(box.conf[0])
                 bbox = box.xyxy[0].cpu().numpy()
                 print(f"    {j+1}. {class_names[class_id]}: {confidence:.3f} at [{bbox[0]:.0f}, {bbox[1]:.0f}, {bbox[2]:.0f}, {bbox[3]:.0f}]")
+                
+                # Print mask area if available
+                if result.masks is not None and j < len(result.masks.data):
+                    mask = result.masks.data[j].cpu().numpy()
+                    mask_area = np.sum(mask > 0)
+                    print(f"        Mask area: {mask_area} pixels")
         else:
             print(f"  No detections found")
     
@@ -120,6 +130,7 @@ def predict_on_test_images():
     print(f"Frame detections: {stats['frame_detections']}")
     print(f"Average detections per image: {stats['total_detections']/stats['total_images']:.2f}")
     print(f"Annotated images saved to: {output_dir}")
+    print(f"Mask overlays saved to: {output_dir} (mask_*.jpg)")
     
     # === SAVE SUMMARY TO FILE ===
     summary_file = os.path.join(output_dir, "prediction_summary.txt")
@@ -127,6 +138,7 @@ def predict_on_test_images():
         f.write("YOLO MODEL PREDICTION SUMMARY\n")
         f.write("="*40 + "\n")
         f.write(f"Model used: {model_path}\n")
+        f.write(f"Model type: YOLOv11 Segmentation\n")
         f.write(f"Confidence threshold: {confidence_threshold}\n")
         f.write(f"IoU threshold: {iou_threshold}\n")
         f.write(f"Test images directory: {test_images_dir}\n")
@@ -137,6 +149,33 @@ def predict_on_test_images():
         f.write(f"Average detections per image: {stats['total_detections']/stats['total_images']:.2f}\n")
     
     print(f"Summary saved to: {summary_file}")
+
+def save_mask_overlay(original_image, result, output_path):
+    """Save an overlay of masks on the original image"""
+    if result.masks is None:
+        return
+    
+    overlay = original_image.copy()
+    
+    # Create colored masks
+    colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255)]
+    
+    for i, mask_data in enumerate(result.masks.data):
+        mask = mask_data.cpu().numpy()
+        
+        # Resize mask to match image dimensions if needed
+        if mask.shape != original_image.shape[:2]:
+            mask = cv2.resize(mask, (original_image.shape[1], original_image.shape[0]))
+        
+        # Create colored mask
+        color = colors[i % len(colors)]
+        colored_mask = np.zeros_like(original_image)
+        colored_mask[mask > 0.5] = color
+        
+        # Blend with original image
+        overlay = cv2.addWeighted(overlay, 0.7, colored_mask, 0.3, 0)
+    
+    cv2.imwrite(output_path, overlay)
 
 def visualize_random_predictions(num_images=4):
     """Display a few random predictions for quick visual inspection"""
@@ -149,6 +188,9 @@ def visualize_random_predictions(num_images=4):
     pred_images = list(Path(output_dir).glob("pred_*.jpg"))
     pred_images.extend(list(Path(output_dir).glob("pred_*.png")))
     
+    mask_images = list(Path(output_dir).glob("mask_*.jpg"))
+    mask_images.extend(list(Path(output_dir).glob("mask_*.png")))
+    
     if not pred_images:
         print("No prediction images found to visualize.")
         return
@@ -157,24 +199,37 @@ def visualize_random_predictions(num_images=4):
     import random
     selected_images = random.sample(pred_images, min(num_images, len(pred_images)))
     
-    # Create subplot
-    fig, axes = plt.subplots(2, 2, figsize=(15, 12))
-    axes = axes.flatten()
+    # Create subplot for predictions and masks
+    fig, axes = plt.subplots(2, 4, figsize=(20, 10))
     
     for i, img_path in enumerate(selected_images):
         if i >= 4:  # Limit to 4 images
             break
-            
-        img = cv2.imread(str(img_path))
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         
-        axes[i].imshow(img_rgb)
-        axes[i].set_title(f"Prediction: {img_path.name}", fontsize=10)
-        axes[i].axis('off')
+        # Load prediction image
+        pred_img = cv2.imread(str(img_path))
+        pred_img_rgb = cv2.cvtColor(pred_img, cv2.COLOR_BGR2RGB)
+        
+        axes[0, i].imshow(pred_img_rgb)
+        axes[0, i].set_title(f"Prediction: {img_path.name}", fontsize=10)
+        axes[0, i].axis('off')
+        
+        # Load corresponding mask image
+        mask_path = img_path.parent / img_path.name.replace("pred_", "mask_")
+        if mask_path.exists():
+            mask_img = cv2.imread(str(mask_path))
+            mask_img_rgb = cv2.cvtColor(mask_img, cv2.COLOR_BGR2RGB)
+            
+            axes[1, i].imshow(mask_img_rgb)
+            axes[1, i].set_title(f"Mask Overlay: {mask_path.name}", fontsize=10)
+            axes[1, i].axis('off')
+        else:
+            axes[1, i].axis('off')
     
     # Hide unused subplots
     for i in range(len(selected_images), 4):
-        axes[i].axis('off')
+        axes[0, i].axis('off')
+        axes[1, i].axis('off')
     
     plt.tight_layout()
     plt.show()

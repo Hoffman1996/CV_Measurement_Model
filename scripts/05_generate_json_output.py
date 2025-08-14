@@ -56,8 +56,93 @@ def detect_charuco_board(image, calib_data):
     
     return None, None, None
 
-def calculate_real_world_measurements(bbox_pixels, charuco_corners, charuco_ids, charuco_board, calib_data):
-    """Calculate real-world dimensions using ChArUco board reference"""
+def polygon_to_bbox(polygon):
+    """Convert polygon points to bounding box [x1, y1, x2, y2]"""
+    x_coords = polygon[:, 0]
+    y_coords = polygon[:, 1]
+    return [np.min(x_coords), np.min(y_coords), np.max(x_coords), np.max(y_coords)]
+
+def calculate_polygon_area_pixels(polygon):
+    """Calculate polygon area in pixels using the shoelace formula"""
+    x = polygon[:, 0]
+    y = polygon[:, 1]
+    return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
+
+def calculate_real_world_measurements_polygon(polygon_pixels, charuco_corners, charuco_ids, charuco_board, calib_data):
+    """Calculate real-world dimensions using polygon and ChArUco board reference"""
+    
+    if charuco_corners is None or len(charuco_corners) < 4:
+        return None
+    
+    # Solve PnP to get pose
+    object_points = charuco_board.getChessboardCorners()[charuco_ids.flatten()]
+    
+    success, rvec, tvec = cv2.solvePnP(
+        objectPoints=object_points,
+        imagePoints=charuco_corners,
+        cameraMatrix=calib_data['camera_matrix'],
+        distCoeffs=calib_data['dist_coeffs']
+    )
+    
+    if not success:
+        return None
+    
+    # Project polygon corners to 3D plane (z=0, same plane as ChArUco board)
+    polygon_corners_3d = []
+    for corner_2d in polygon_pixels:
+        # Unproject to ray
+        corner_normalized = cv2.undistortPoints(
+            corner_2d.reshape(1, 1, 2),
+            calib_data['camera_matrix'],
+            calib_data['dist_coeffs']
+        )[0][0]
+        
+        # Find intersection with z=0 plane (ChArUco board plane)
+        scale = -tvec[2] / corner_normalized[1] if corner_normalized[1] != 0 else 1
+        x_3d = float(corner_normalized[0] * scale + tvec[0][0])
+        y_3d = float(corner_normalized[1] * scale + tvec[1][0])
+        z_3d = 0.0  # On the board plane
+        
+        polygon_corners_3d.append([x_3d, y_3d, z_3d])
+    
+    polygon_corners_3d = np.array(polygon_corners_3d, dtype=float)
+
+    if len(polygon_corners_3d) < 3:
+        print(f"Warning: Not enough points for polygon calculation")
+        return None
+
+    try:
+        # Calculate polygon area in 3D (projected to 2D since z=0)
+        polygon_2d = polygon_corners_3d[:, :2]  # Take only x, y coordinates
+        area_m2 = calculate_polygon_area_pixels(polygon_2d)
+        
+        # Calculate approximate width and height from bounding box
+        x_coords = polygon_2d[:, 0]
+        y_coords = polygon_2d[:, 1]
+        width_m = np.max(x_coords) - np.min(x_coords)
+        height_m = np.max(y_coords) - np.min(y_coords)
+        
+        # Calculate perimeter
+        perimeter_m = 0.0
+        for i in range(len(polygon_2d)):
+            p1 = polygon_2d[i]
+            p2 = polygon_2d[(i + 1) % len(polygon_2d)]
+            perimeter_m += np.linalg.norm(p2 - p1)
+        
+    except Exception as e:
+        print(f"Error calculating polygon dimensions: {e}")
+        return None
+    
+    return {
+        'area_m2': float(area_m2),
+        'width_m': float(width_m),
+        'height_m': float(height_m),
+        'perimeter_m': float(perimeter_m),
+        'polygon_points_3d': polygon_corners_3d.tolist()
+    }
+
+def calculate_real_world_measurements_bbox(bbox_pixels, charuco_corners, charuco_ids, charuco_board, calib_data):
+    """Calculate real-world dimensions using bounding box and ChArUco board reference"""
     
     if charuco_corners is None or len(charuco_corners) < 4:
         return None
@@ -94,7 +179,6 @@ def calculate_real_world_measurements(bbox_pixels, charuco_corners, charuco_ids,
         )[0][0]
         
         # Find intersection with z=0 plane (ChArUco board plane)
-        # This is a simplified approach - assumes board is roughly parallel to detection plane
         scale = -tvec[2] / corner_normalized[1] if corner_normalized[1] != 0 else 1
         x_3d = float(corner_normalized[0] * scale + tvec[0][0])
         y_3d = float(corner_normalized[1] * scale + tvec[1][0])
@@ -102,15 +186,12 @@ def calculate_real_world_measurements(bbox_pixels, charuco_corners, charuco_ids,
         
         bbox_corners_3d.append([x_3d, y_3d, z_3d])
     
-    # bbox_corners_3d = np.array(bbox_corners_3d)
-    # Ensure numpy array and handle polygons with more than 4 points
     bbox_corners_3d = np.array(bbox_corners_3d, dtype=float)
 
     if bbox_corners_3d.shape != (4, 3):
         print(f"Warning: Expected (4,3) shape, got {bbox_corners_3d.shape}")
         return None
 
-   # Calculate width and height in meters
     try:
         width_m = np.linalg.norm(bbox_corners_3d[1] - bbox_corners_3d[0])
         height_m = np.linalg.norm(bbox_corners_3d[3] - bbox_corners_3d[0])
@@ -141,7 +222,7 @@ def process_s20plus_image(image_path, model, calib_data, confidence_threshold=0.
     
     detections = []
     
-    for i, box in enumerate(result.obb):
+    for i, box in enumerate(result.boxes):  # Changed from result.obb to result.boxes
         class_id = int(box.cls[0])
         confidence = float(box.conf[0])
         bbox = box.xyxy[0].cpu().numpy()  # [x1, y1, x2, y2]
@@ -160,15 +241,52 @@ def process_s20plus_image(image_path, model, calib_data, confidence_threshold=0.
                 'height_px': float(bbox[3] - bbox[1])
             },
             'charuco_detected': charuco_corners is not None,
-            'real_world_measurements': None
+            'real_world_measurements': None,
+            'mask_data': None
         }
         
-        # Calculate real-world measurements if ChArUco board is detected
-        if charuco_corners is not None:
-            measurements = calculate_real_world_measurements(
+        # Process segmentation mask if available
+        if result.masks is not None and i < len(result.masks.data):
+            mask = result.masks.data[i].cpu().numpy()
+            
+            # Resize mask to match image dimensions if needed
+            if mask.shape != image.shape[:2]:
+                mask = cv2.resize(mask, (image.shape[1], image.shape[0]))
+            
+            # Extract polygon from mask
+            contours, _ = cv2.findContours((mask > 0.5).astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+            if contours:
+                # Get the largest contour
+                largest_contour = max(contours, key=cv2.contourArea)
+                
+                # Simplify contour to reduce points
+                epsilon = 0.02 * cv2.arcLength(largest_contour, True)
+                simplified_contour = cv2.approxPolyDP(largest_contour, epsilon, True)
+                
+                # Convert to list of points
+                polygon_points = simplified_contour.reshape(-1, 2).astype(float)
+                
+                detection['mask_data'] = {
+                    'polygon_points': polygon_points.tolist(),
+                    'mask_area_pixels': float(calculate_polygon_area_pixels(polygon_points)),
+                    'mask_perimeter_pixels': float(cv2.arcLength(largest_contour, True))
+                }
+                
+                # Calculate real-world measurements from polygon if ChArUco board is detected
+                if charuco_corners is not None:
+                    polygon_measurements = calculate_real_world_measurements_polygon(
+                        polygon_points, charuco_corners, charuco_ids, charuco_board, calib_data
+                    )
+                    if polygon_measurements:
+                        detection['real_world_measurements'] = polygon_measurements
+        
+        # Fall back to bbox measurements if no mask or mask processing failed
+        if detection['real_world_measurements'] is None and charuco_corners is not None:
+            bbox_measurements = calculate_real_world_measurements_bbox(
                 bbox, charuco_corners, charuco_ids, charuco_board, calib_data
             )
-            detection['real_world_measurements'] = measurements
+            detection['real_world_measurements'] = bbox_measurements
         
         detections.append(detection)
     
@@ -190,10 +308,10 @@ def generate_json_output():
     """Main function to process S20+ images and generate JSON output"""
     
     # === CONFIGURATION ===
-    model_path = "yolo_training_output/yolov8s-obb_frame_detector/weights/best.pt"
+    model_path = "yolo_training_output/yolo11s-seg_frame_detector/weights/best.pt"  # Updated path
     s20plus_images_dir = "s20plus_images_with_ChArUco"
     calib_file = "config/s20plus_calib.yaml"
-    output_file = "detection_results.json"
+    output_file = "detection_results_segmentation.json"  # Different filename
     confidence_threshold = 0.75
     
     # === LOAD MODEL AND CALIBRATION ===
@@ -211,7 +329,7 @@ def generate_json_output():
         print(f"❌ S20+ images directory not found: {s20plus_images_dir}")
         return
     
-    print("Loading YOLO model...")
+    print("Loading YOLO segmentation model...")
     model = YOLO(model_path)
     
     print("Loading camera calibration...")
@@ -236,7 +354,9 @@ def generate_json_output():
         'images_with_charuco': 0,
         'images_with_detections': 0,
         'total_detections': 0,
-        'measurements_calculated': 0
+        'measurements_calculated': 0,
+        'mask_measurements_calculated': 0,
+        'bbox_measurements_calculated': 0
     }
     
     for i, img_path in enumerate(s20plus_images):
@@ -259,6 +379,12 @@ def generate_json_output():
                 for detection in result['detections']:
                     if detection['real_world_measurements'] is not None:
                         stats['measurements_calculated'] += 1
+                        
+                        # Check if measurements came from mask or bbox
+                        if 'polygon_points_3d' in detection['real_world_measurements']:
+                            stats['mask_measurements_calculated'] += 1
+                        else:
+                            stats['bbox_measurements_calculated'] += 1
             
             print(f"  Detections: {result['total_detections']}, ChArUco: {'Yes' if result['charuco_board_detected'] else 'No'}")
     
@@ -267,6 +393,7 @@ def generate_json_output():
         'metadata': {
             'generation_timestamp': datetime.now().isoformat(),
             'model_used': model_path,
+            'model_type': 'YOLOv11 Segmentation',
             'calibration_file': calib_file,
             'confidence_threshold': confidence_threshold,
             'total_images_processed': len(all_results)
@@ -287,6 +414,8 @@ def generate_json_output():
     print(f"Images with detections: {stats['images_with_detections']}")
     print(f"Total detections: {stats['total_detections']}")
     print(f"Real-world measurements calculated: {stats['measurements_calculated']}")
+    print(f"  - From segmentation masks: {stats['mask_measurements_calculated']}")
+    print(f"  - From bounding boxes: {stats['bbox_measurements_calculated']}")
     print(f"JSON output saved to: {output_file}")
     
     return output_file
@@ -304,7 +433,11 @@ if __name__ == "__main__":
         for result in data['results']:
             for detection in result['detections']:
                 if detection['real_world_measurements']:
-                    print(f"  {detection['class_name']}: {detection['real_world_measurements']['width_m']:.3f}m × {detection['real_world_measurements']['height_m']:.3f}m")
+                    measurements = detection['real_world_measurements']
+                    if 'polygon_points_3d' in measurements:
+                        print(f"  {detection['class_name']} (from mask): {measurements['area_m2']:.6f}m² (perimeter: {measurements['perimeter_m']:.3f}m)")
+                    else:
+                        print(f"  {detection['class_name']} (from bbox): {measurements['width_m']:.3f}m × {measurements['height_m']:.3f}m")
                     break
             else:
                 continue
