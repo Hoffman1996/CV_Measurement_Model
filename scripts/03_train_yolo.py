@@ -4,17 +4,17 @@ import os
 from pathlib import Path
 import yaml
 import torch
-
+import config.settings as settings
 
 def train_yolo_model():
     # === CONFIGURATION ===
-    model_arch = 'yolo11s-seg.pt'  # YOLOv11 segmentation model
-    data_yaml = 'datasets/yolo_dataset/data.yaml'
+    model_arch = MODEL_ARCHITECTURE
+    data_yaml = DATA_YAML
     imgsz = 640  # Image size for training 640x640
     epochs = 100  # Increased for better convergence
     batch = 16    # Adjust based on your GPU memory
-    project = 'yolo_training_output'
-    name = 'yolo11s-seg_frame_detector'
+    project = TRAINING_OUTPUT_DIR
+    name = MODEL_NAME
 
     # Create output directory
     os.makedirs(project, exist_ok=True)
@@ -55,7 +55,7 @@ def train_yolo_model():
     val_count = len(list(val_images.glob('*.jpg'))) + \
         len(list(val_images.glob('*.png')))
 
-    # Check for test set (optional but recommended for final evaluation)
+    # Check for test set
     test_images = Path("datasets/yolo_dataset/test/images")
     test_count = 0
     if test_images.exists():

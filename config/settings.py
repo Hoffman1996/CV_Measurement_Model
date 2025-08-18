@@ -1,9 +1,13 @@
 import cv2
 
-# === YOLO LETTERBOX SETTINGS ===
+# === YOLO SETTINGS ===
 YOLO_INPUT_SIZE = 640
 YOLO_INPUT_SHAPE = (YOLO_INPUT_SIZE, YOLO_INPUT_SIZE)
 LETTERBOX_COLOR = (114, 114, 114)
+MODEL_ARCHITECTURE = 'yolo11s-seg.pt'
+DATA_YAML = 'datasets/yolo_dataset/data.yaml'
+TRAINING_OUTPUT_DIR = 'yolo_training_output'
+MODEL_NAME = 'yolo11s-seg_frame_detector'
 
 # === YOUR CHARUCO BOARD SETTINGS ===
 CHARUCOBOARD_ROWCOUNT = 5
