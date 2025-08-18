@@ -24,22 +24,28 @@ desktop.ini
 *.yaml
 *.json
 *.ckpt
+*.zip
+*.pt
 
 # Model output / checkpoints
 runs/
 weights/
 output/
 checkpoints/
+yolo_training_output/
+visualization_output/
+letterbox_preview/
 
 # Roboflow & datasets (if auto-downloaded or archived)
 datasets/
-archive/
-florence_labels/
-images_for_florence/
 s20plus_images_with_ChArUco/
+charuco_images/
 
 # VSCode settings (optional)
 .vscode/
+
+# Folders
+archive/
 
 # Files
 summary.md

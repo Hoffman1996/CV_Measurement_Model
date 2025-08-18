@@ -9,13 +9,12 @@ import numpy as np
 
 def predict_on_test_images():
     # === CONFIGURATION ===
-    # Update this path after training is complete
     model_path = "yolo_training_output/yolo11s-seg_frame_detector/weights/best.pt"
     test_images_dir = "datasets/yolo_dataset/test/images"  # Assuming you have test split
     test_labels_dir = "datasets/yolo_dataset/test/labels"  # For comparison if available
     output_dir = "test_predictions"
     confidence_threshold = 0.8   # Higher confidence = fewer false positives
-    iou_threshold = 0.6          # Lower IoU = less merging of nearby detections
+    iou_threshold = 0.01          # Lower IoU = less merging of nearby detections
     
     # Class names
     class_names = ['frame']
