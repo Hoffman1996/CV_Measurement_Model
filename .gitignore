@@ -35,17 +35,17 @@ checkpoints/
 yolo_training_output/
 visualization_output/
 letterbox_preview/
+test_predictions/
 
 # Roboflow & datasets (if auto-downloaded or archived)
 datasets/
-s20plus_images_with_ChArUco/
-charuco_images/
 
 # VSCode settings (optional)
 .vscode/
 
 # Folders
 archive/
+visualize_corners/
 
 # Files
 summary.md

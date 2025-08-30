@@ -1,9 +1,6 @@
-# 01_charuco_calibration_640x640_letterbox.py
 import cv2
 import numpy as np
 import os
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import glob
 import yaml
 import scripts.utils as utils
@@ -25,14 +22,27 @@ charuco_board = cv2.aruco.CharucoBoard(
     size=(settings.CHARUCOBOARD_COLCOUNT, settings.CHARUCOBOARD_ROWCOUNT),
     squareLength=settings.SQUARE_LENGTH,
     markerLength=settings.MARKER_LENGTH,
-    dictionary=aruco_dict
+    dictionary=aruco_dict,
 )
+
+# Improved detector parameters
+detector_params = cv2.aruco.DetectorParameters()
+detector_params.adaptiveThreshWinSizeMin = 3
+detector_params.adaptiveThreshWinSizeMax = 23
+detector_params.adaptiveThreshWinSizeStep = 10
+detector_params.minMarkerPerimeterRate = 0.01  # Minimum marker size -> Prevents false positives from small dark squares that aren't actually markers
+detector_params.maxMarkerPerimeterRate = 2.0  # Maximum marker size -> Prevents detection of huge dark regions that obviously aren't markers
+detector_params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
 
 # === VERIFY IMAGES DIRECTORY ===
 if not os.path.exists(settings.CALIB_IMAGES_DIR):
     print(f"❌ Calibration images directory not found: {settings.CALIB_IMAGES_DIR}")
     print("Please take calibration photos first.")
     exit(1)
+
+# Create visualization directory
+visualize_corners_dir = settings.VISUALIZATION_DIR
+os.makedirs(visualize_corners_dir, exist_ok=True)
 
 # === SAVE LETTERBOX PREVIEW IMAGES ===
 utils.save_letterboxed_images_preview(settings.CALIB_IMAGES_DIR, num_preview=3)
@@ -54,64 +64,63 @@ if len(images) == 0:
 
 for img_path in images:
     print(f"Processing: {os.path.basename(img_path)}", end=" ")
-    
+
     # Load original image
     image = cv2.imread(img_path)
     if image is None:
         print("❌ Failed to load")
         skipped_images.append((img_path, "❌ Failed to load image"))
         continue
-    
+
     original_shape = image.shape[:2]
-    
+
     # Apply YOLO letterboxing
     letterboxed_image, scale_ratio, padding = utils.letterbox_yolo_style(
         image, settings.YOLO_INPUT_SHAPE, settings.LETTERBOX_COLOR
     )
-    
+
     # Store letterbox statistics
-    letterbox_stats.append({
-        'image': os.path.basename(img_path),
-        'original_shape': original_shape,
-        'scale_ratio': scale_ratio,
-        'padding': padding
-    })
-    
+    letterbox_stats.append(
+        {
+            "image": os.path.basename(img_path),
+            "original_shape": original_shape,
+            "scale_ratio": scale_ratio,
+            "padding": padding,
+        }
+    )
+
     # Verify final size
     if letterboxed_image.shape[:2] != settings.YOLO_INPUT_SHAPE:
-        print(f"❌ Letterbox failed: got {letterboxed_image.shape}, expected {settings.YOLO_INPUT_SHAPE}")
-        skipped_images.append((img_path, f"Letterbox size mismatch: {letterboxed_image.shape}"))
+        print(
+            f"❌ Letterbox failed: got {letterboxed_image.shape}, expected {settings.YOLO_INPUT_SHAPE}"
+        )
+        skipped_images.append(
+            (img_path, f"Letterbox size mismatch: {letterboxed_image.shape}")
+        )
         continue
 
-    # Create detection parameters for better control
-    detector_params = cv2.aruco.DetectorParameters_create()
-    detector_params.adaptiveThreshConstant = 7  # Adjust based on lighting
-    detector_params.minMarkerPerimeterRate = 0.01  # Minimum marker size -> Prevents false positives from small dark squares that aren't actually markers
-    detector_params.maxMarkerPerimeterRate = 2.0   # Maximum marker size -> Prevents detection of huge dark regions that obviously aren't markers
+    markers_ids, charuco_corners, charuco_ids = utils.detect_charuco_board(
+        letterboxed_image,
+        aruco_dict,
+        charuco_board,
+        detector_params,
+        visualize_corners_dir,
+        img_path,
+    )
 
-    # Detect ArUco markers
-    corners, ids, _ = cv2.aruco.detectMarkers(letterboxed_image, aruco_dict, parameters=detector_params)
+    all_corners.append(charuco_corners)
+    all_ids.append(charuco_ids)
+    valid_images.append(img_path)
+    print(
+        f"✅ {len(markers_ids)} markers, {len(charuco_ids)} corners (scale: {scale_ratio:.3f})"
+    )
 
-    if ids is not None and len(ids) >= settings.MIN_MARKERS_PER_IMAGE:
-        # Interpolate ChArUco corners
-        ret, charuco_corners, charuco_ids = cv2.aruco.interpolateCornersCharuco(
-            markerCorners=corners,
-            markerIds=ids,
-            image=letterboxed_image,
-            board=charuco_board
-        )
-
-        if ret and charuco_corners is not None and charuco_ids is not None and len(charuco_ids) >= settings.MIN_CORNERS_PER_IMAGE:
-            all_corners.append(charuco_corners)
-            all_ids.append(charuco_ids)
-            valid_images.append(img_path)
-            print(f"✅ {len(ids)} markers, {len(charuco_ids)} corners (scale: {scale_ratio:.3f})")
-        else:
-            corners_found = len(charuco_ids) if charuco_ids is not None else 0
-            print(f"❌ Not enough corners: {corners_found}")
-            skipped_images.append((img_path, f"Only {corners_found} ChArUco corners found"))
-    else:
-        markers_found = len(ids) if ids is not None else 0
+    corners_found = len(charuco_ids) if charuco_ids is not None else 0
+    markers_found = len(markers_ids) if markers_ids is not None else 0
+    if corners_found < settings.MIN_CORNERS_PER_IMAGE:
+        print(f"❌ Not enough corners: {corners_found}")
+        skipped_images.append((img_path, f"Only {corners_found} ChArUco corners found"))
+    if markers_found < settings.MIN_MARKERS_PER_IMAGE:
         print(f"❌ Not enough markers: {markers_found}")
         skipped_images.append((img_path, f"Only {markers_found} markers found"))
 
@@ -122,15 +131,19 @@ print(f"Skipped images: {len(skipped_images)}")
 # Print letterbox statistics
 if letterbox_stats:
     print(f"\nLetterbox Statistics:")
-    scale_ratios = [s['scale_ratio'] for s in letterbox_stats]
+    scale_ratios = [s["scale_ratio"] for s in letterbox_stats]
     print(f"  Scale ratio range: {min(scale_ratios):.4f} - {max(scale_ratios):.4f}")
     print(f"  Average scale ratio: {np.mean(scale_ratios):.4f}")
-    
+
     # Show padding statistics
-    paddings_w = [s['padding'][0] for s in letterbox_stats]
-    paddings_h = [s['padding'][1] for s in letterbox_stats]
-    print(f"  Width padding range: {min(paddings_w):.1f} - {max(paddings_w):.1f} pixels")
-    print(f"  Height padding range: {min(paddings_h):.1f} - {max(paddings_h):.1f} pixels")
+    paddings_w = [s["padding"][0] for s in letterbox_stats]
+    paddings_h = [s["padding"][1] for s in letterbox_stats]
+    print(
+        f"  Width padding range: {min(paddings_w):.1f} - {max(paddings_w):.1f} pixels"
+    )
+    print(
+        f"  Height padding range: {min(paddings_h):.1f} - {max(paddings_h):.1f} pixels"
+    )
 
 if skipped_images:
     print("\nSkipped images:")
@@ -139,7 +152,9 @@ if skipped_images:
 
 # === CALIBRATE IF ENOUGH VALID IMAGES FOUND ===
 if len(all_corners) < settings.MIN_VALID_IMAGES:
-    print(f"\n❌ Not enough valid calibration images. Found {len(all_corners)}, need at least {settings.MIN_VALID_IMAGES}.")
+    print(
+        f"\n❌ Not enough valid calibration images. Found {len(all_corners)}, need at least {settings.MIN_VALID_IMAGES}."
+    )
     print("\nTips for better calibration images:")
     print("- Ensure the entire ChArUco board is visible after letterboxing")
     print("- Take photos from different angles and distances")
@@ -148,16 +163,19 @@ if len(all_corners) < settings.MIN_VALID_IMAGES:
     print("- Consider that letterboxing may crop edges - keep board more centered")
     exit(1)
 
-print(f"\n✅ Proceeding with calibration using {len(all_corners)} letterboxed images...")
+print(
+    f"\n✅ Proceeding with calibration using {len(all_corners)} letterboxed images..."
+)
 
 # Perform calibration on letterboxed images
 ret, camera_matrix, dist_coeffs, rvecs, tvecs = cv2.aruco.calibrateCameraCharuco(
     charucoCorners=all_corners,
     charucoIds=all_ids,
     board=charuco_board,
-    imageSize=(settings.YOLO_INPUT_SHAPE[1], settings.YOLO_INPUT_SHAPE[0]),  # (width, height)
+    # (width, height)
+    imageSize=(settings.YOLO_INPUT_SHAPE[1], settings.YOLO_INPUT_SHAPE[0]),
     cameraMatrix=None,
-    distCoeffs=None
+    distCoeffs=None,
 )
 
 # === EVALUATE CALIBRATION QUALITY ===
@@ -172,18 +190,23 @@ print("Distortion Coefficients:")
 print(dist_coeffs)
 
 # Calculate expected focal length range
-average_scale = np.mean([s['scale_ratio'] for s in letterbox_stats])
+average_scale = np.mean([s["scale_ratio"] for s in letterbox_stats])
 print(f"\nCalibration info:")
 print(f"  Average scale ratio: {average_scale:.4f}")
-print(f"  Actual focal length: fx={camera_matrix[0,0]:.1f}, fy={camera_matrix[1,1]:.1f}")
+print(
+    f"  Actual focal length: fx={camera_matrix[0,0]:.1f}, fy={camera_matrix[1,1]:.1f}"
+)
 
 # Check if focal lengths are reasonable
-fx, fy = camera_matrix[0,0], camera_matrix[1,1]
+fx, fy = camera_matrix[0, 0], camera_matrix[1, 1]
 
-expected_range_min = settings.YOLO_INPUT_SIZE * 0.5   # 320 pixels
-expected_range_max = settings.YOLO_INPUT_SIZE * 1.5   # 960 pixels
+expected_range_min = settings.YOLO_INPUT_SIZE * 0.5  # 320 pixels
+expected_range_max = settings.YOLO_INPUT_SIZE * 1.5  # 960 pixels
 
-if expected_range_min < fx < expected_range_max and expected_range_min < fy < expected_range_max:
+if (
+    expected_range_min < fx < expected_range_max
+    and expected_range_min < fy < expected_range_max
+):
     print("  ✅ Focal lengths look reasonable for 640x640 images")
 else:
     print("  ⚠️  Focal lengths seem unusual - check your calibration")
@@ -194,7 +217,7 @@ error_details = []
 
 if len(all_corners) == 0:
     print("⚠️ No corners to calculate reprojection error")
-    mean_error = float('inf')
+    mean_error = float("inf")
     quality = "Failed - no valid corners"
 else:
     for i in range(len(all_corners)):
@@ -202,7 +225,9 @@ else:
         board_corners_3d = charuco_board.getChessboardCorners()
         detected_corner_ids = all_ids[i].flatten()
         if np.any(detected_corner_ids >= len(board_corners_3d)):
-            print(f"Warning: Invalid corner ID detected in {os.path.basename(valid_images[i])}")
+            print(
+                f"Warning: Invalid corner ID detected in {os.path.basename(valid_images[i])}"
+            )
             continue
         detected_3d_points = board_corners_3d[detected_corner_ids]
 
@@ -213,15 +238,19 @@ else:
         except cv2.error as e:
             print(f"Projection failed for {os.path.basename(valid_images[i])}: {e}")
             continue
-    
+
         # Calculate error
-        error = cv2.norm(all_corners[i], projected_corners, cv2.NORM_L2) / len(projected_corners)
-        
+        error = cv2.norm(all_corners[i], projected_corners, cv2.NORM_L2) / len(
+            projected_corners
+        )
+
         # Clamp extreme errors that might indicate calculation issues
         if error > 10.0:
-            print(f"⚠️ Very high reprojection error ({error:.2f}) for {os.path.basename(valid_images[i])} - possible calibration issue")
+            print(
+                f"⚠️ Very high reprojection error ({error:.2f}) for {os.path.basename(valid_images[i])} - possible calibration issue"
+            )
             error = 10.0  # Clamp to prevent one bad image from skewing the average
-        
+
         total_error += error
         error_details.append((valid_images[i], error))
 
@@ -251,31 +280,31 @@ if mean_error > 1.0:
 os.makedirs(os.path.dirname(settings.CALIB_OUTPUT_FILE), exist_ok=True)
 
 # Calculate average letterbox parameters for metadata
-avg_scale = np.mean([s['scale_ratio'] for s in letterbox_stats])
-avg_padding_w = np.mean([s['padding'][0] for s in letterbox_stats])
-avg_padding_h = np.mean([s['padding'][1] for s in letterbox_stats])
+avg_scale = np.mean([s["scale_ratio"] for s in letterbox_stats])
+avg_padding_w = np.mean([s["padding"][0] for s in letterbox_stats])
+avg_padding_h = np.mean([s["padding"][1] for s in letterbox_stats])
 
 calib_data = {
-    'camera_matrix': camera_matrix.tolist(),
-    'dist_coeff': dist_coeffs.tolist(),
-    'image_width': settings.YOLO_INPUT_SIZE,
-    'image_height': settings.YOLO_INPUT_SIZE,
-    'square_length_m': settings.SQUARE_LENGTH,
-    'marker_length_m': settings.MARKER_LENGTH,
-    'charuco_dict': settings.ARUCO_DICT,
-    'calibration_rms_error': float(ret),
-    'mean_reprojection_error': float(mean_error),
-    'num_calibration_images': len(all_corners),
-    'calibration_quality': quality,
+    "camera_matrix": camera_matrix.tolist(),
+    "dist_coeff": dist_coeffs.tolist(),
+    "image_width": settings.YOLO_INPUT_SIZE,
+    "image_height": settings.YOLO_INPUT_SIZE,
+    "square_length_m": settings.SQUARE_LENGTH,
+    "marker_length_m": settings.MARKER_LENGTH,
+    "charuco_dict": settings.ARUCO_DICT,
+    "calibration_rms_error": float(ret),
+    "mean_reprojection_error": float(mean_error),
+    "num_calibration_images": len(all_corners),
+    "calibration_quality": quality,
     # YOLO-specific metadata
-    'yolo_letterbox': True,
-    'yolo_input_size': settings.YOLO_INPUT_SIZE,
-    'letterbox_color': settings.LETTERBOX_COLOR,
-    'average_scale_ratio': float(avg_scale),
-    'average_padding_w': float(avg_padding_w),
-    'average_padding_h': float(avg_padding_h),
-    'calibration_type': 'letterboxed_for_yolo',
-    'coordinate_system': '640x640_letterboxed_space'
+    "yolo_letterbox": True,
+    "yolo_input_size": settings.YOLO_INPUT_SIZE,
+    "letterbox_color": settings.LETTERBOX_COLOR,
+    "average_scale_ratio": float(avg_scale),
+    "average_padding_w": float(avg_padding_w),
+    "average_padding_h": float(avg_padding_h),
+    "calibration_type": "letterboxed_for_yolo",
+    "coordinate_system": "640x640_letterboxed_space",
 }
 
 with open(settings.CALIB_OUTPUT_FILE, "w") as f:
@@ -283,17 +312,3 @@ with open(settings.CALIB_OUTPUT_FILE, "w") as f:
 
 print(f"\n📁 Saved letterboxed calibration to: {settings.CALIB_OUTPUT_FILE}")
 print("\n✅ YOLO-compatible calibration complete!")
-
-# === VERIFICATION RECOMMENDATION ===
-print("\n" + "=" * 50)
-print("NEXT STEPS")
-print("=" * 50)
-print("1. ✅ Your calibration is now compatible with YOLO's 640x640 letterboxed input")
-print("2. 🔍 Check the letterbox preview images in letterbox_preview/ folder")
-print("3. 📊 Compare distance measurements with known objects")
-print(f"4. 🚀 Use this calibration file in your YOLO distance measurement: {settings.CALIB_OUTPUT_FILE}")
-print("\nIMPORTANT NOTES:")
-print(f"- This calibration is ONLY valid for 640x640 letterboxed images")
-print(f"- Your YOLO predictions are already in the correct coordinate space")
-print(f"- No coordinate conversion needed in your distance calculation script")
-print(f"- Average scale factor was {avg_scale:.4f} (original → letterboxed)")

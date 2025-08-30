@@ -3,14 +3,14 @@ import cv2
 # === YOLO SETTINGS ===
 YOLO_INPUT_SIZE = 640
 YOLO_INPUT_SHAPE = (YOLO_INPUT_SIZE, YOLO_INPUT_SIZE)
-LETTERBOX_COLOR = (255, 255, 255) # White to match wall paint color
-MODEL_ARCHITECTURE = 'yolo11s-seg.pt'
-DATA_YAML = 'datasets/yolo_dataset/data.yaml'
-TRAINING_OUTPUT_DIR = 'yolo_training_output'
-MODEL_NAME = 'yolo11s-seg_frame_detector'
+LETTERBOX_COLOR = (255, 255, 255)  # White to match wall paint color
+MODEL_ARCHITECTURE = "yolo11s-seg.pt"
+DATA_YAML = "datasets/yolo_dataset/data.yaml"
+TRAINING_OUTPUT_DIR = "yolo_training_output"
+MODEL_NAME = "yolo11s-seg_frame_detector"
 TRAINING_EPOCHS = 60
 TRAINING_BATCH_SIZE = 32
-TEST_IMAGES_DIR = 'datasets/yolo_dataset/test/images'
+TEST_IMAGES_DIR = "datasets/yolo_dataset/test/images"
 
 # === YOUR CHARUCO BOARD SETTINGS ===
 CHARUCOBOARD_ROWCOUNT = 5
@@ -25,3 +25,7 @@ ARUCO_DICT = cv2.aruco.DICT_6X6_250
 MIN_MARKERS_PER_IMAGE = 6
 MIN_CORNERS_PER_IMAGE = 6
 MIN_VALID_IMAGES = 10
+
+
+# other settings
+VISUALIZATION_DIR = "visualize_corners"
