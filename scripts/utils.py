@@ -25,7 +25,9 @@ def load_camera_calibration(calib_file=settings.CALIB_OUTPUT_FILE):
     }
 
 def letterbox_yolo_style(img, new_shape=settings.YOLO_INPUT_SHAPE, color=settings.LETTERBOX_COLOR):
+    
     """Apply YOLO letterboxing exactly as used in calibration"""
+    
     shape = img.shape[:2]  # current shape [height, width]
     
     if isinstance(new_shape, int):
@@ -36,21 +38,24 @@ def letterbox_yolo_style(img, new_shape=settings.YOLO_INPUT_SHAPE, color=setting
     
     # Compute new dimensions
     new_unpad = int(round(shape[1] * scale_ratio)), int(round(shape[0] * scale_ratio))
+
+    # Resize image
+    img_resized = cv2.resize(img, new_unpad, interpolation=cv2.INTER_LINEAR)
+
+    # Compute padding
     dw = new_shape[1] - new_unpad[0]
     dh = new_shape[0] - new_unpad[1]
     
-    dw /= 2
-    dh /= 2
-    
-    if shape[::-1] != new_unpad:
-        img = cv2.resize(img, new_unpad, interpolation=cv2.INTER_LINEAR)
-    
-    top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
-    left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
-    
-    img = cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)
-    
-    return img, scale_ratio, (dw, dh)
+    # Divide padding into 2 sides
+    top, bottom = dh // 2, dh - dh // 2
+    left, right = dw // 2, dw - dw // 2
+
+    img_letterboxed  = cv2.copyMakeBorder(
+        img_resized, top, bottom, left, right, 
+        cv2.BORDER_CONSTANT, value=color
+    )
+
+    return img_letterboxed, scale_ratio, (left, top)
 
 def ensure_landscape_orientation(image):
     """

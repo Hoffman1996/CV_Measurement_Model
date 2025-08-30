@@ -2,6 +2,8 @@
 import cv2
 import numpy as np
 import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import glob
 import yaml
 import scripts.utils as utils
@@ -13,7 +15,7 @@ print(f"Board: {settings.CHARUCOBOARD_COLCOUNT}x{settings.CHARUCOBOARD_ROWCOUNT}
 print(f"Square size: {settings.SQUARE_LENGTH*1000:.1f}mm")
 print(f"Marker size: {settings.MARKER_LENGTH*1000:.1f}mm")
 print(f"Dictionary: {settings.ARUCO_DICT}")
-print(f"YOLO input size: {settings.YOLO_INPUT_SIZE}x{settings.YOLO_INPUT_SIZE}")
+print(f"YOLO input size: {settings.YOLO_INPUT_SHAPE[0]}x{settings.YOLO_INPUT_SHAPE[1]}")
 print(f"Letterbox padding color: {settings.LETTERBOX_COLOR}")
 print("=" * 50)
 
@@ -38,7 +40,6 @@ utils.save_letterboxed_images_preview(settings.CALIB_IMAGES_DIR, num_preview=3)
 # === COLLECT CORNERS FROM ALL CALIBRATION IMAGES ===
 all_corners = []
 all_ids = []
-image_size = settings.YOLO_INPUT_SHAPE  # Fixed size for letterboxed images
 valid_images = []
 skipped_images = []
 letterbox_stats = []
@@ -58,14 +59,14 @@ for img_path in images:
     image = cv2.imread(img_path)
     if image is None:
         print("❌ Failed to load")
-        skipped_images.append((img_path, "Failed to load image"))
+        skipped_images.append((img_path, "❌ Failed to load image"))
         continue
     
     original_shape = image.shape[:2]
     
     # Apply YOLO letterboxing
     letterboxed_image, scale_ratio, padding = utils.letterbox_yolo_style(
-        image, (utils.YOLO_INPUT_SIZE, utils.YOLO_INPUT_SIZE), utils.LETTERBOX_COLOR
+        image, settings.YOLO_INPUT_SHAPE, settings.LETTERBOX_COLOR
     )
     
     # Store letterbox statistics
@@ -76,28 +77,31 @@ for img_path in images:
         'padding': padding
     })
     
-    # Convert to grayscale for ArUco detection
-    gray = cv2.cvtColor(letterboxed_image, cv2.COLOR_BGR2GRAY)
-    
     # Verify final size
-    if gray.shape != (utils.YOLO_INPUT_SIZE, utils.YOLO_INPUT_SIZE):
-        print(f"❌ Letterbox failed: got {gray.shape}, expected ({utils.YOLO_INPUT_SIZE}, {utils.YOLO_INPUT_SIZE})")
-        skipped_images.append((img_path, f"Letterbox size mismatch: {gray.shape}"))
+    if letterboxed_image.shape[:2] != settings.YOLO_INPUT_SHAPE:
+        print(f"❌ Letterbox failed: got {letterboxed_image.shape}, expected {settings.YOLO_INPUT_SHAPE}")
+        skipped_images.append((img_path, f"Letterbox size mismatch: {letterboxed_image.shape}"))
         continue
 
+    # Create detection parameters for better control
+    detector_params = cv2.aruco.DetectorParameters_create()
+    detector_params.adaptiveThreshConstant = 7  # Adjust based on lighting
+    detector_params.minMarkerPerimeterRate = 0.01  # Minimum marker size -> Prevents false positives from small dark squares that aren't actually markers
+    detector_params.maxMarkerPerimeterRate = 2.0   # Maximum marker size -> Prevents detection of huge dark regions that obviously aren't markers
+
     # Detect ArUco markers
-    corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict)
+    corners, ids, _ = cv2.aruco.detectMarkers(letterboxed_image, aruco_dict, parameters=detector_params)
 
     if ids is not None and len(ids) >= settings.MIN_MARKERS_PER_IMAGE:
         # Interpolate ChArUco corners
-        _, charuco_corners, charuco_ids = cv2.aruco.interpolateCornersCharuco(
+        ret, charuco_corners, charuco_ids = cv2.aruco.interpolateCornersCharuco(
             markerCorners=corners,
             markerIds=ids,
-            image=gray,
+            image=letterboxed_image,
             board=charuco_board
         )
 
-        if charuco_corners is not None and charuco_ids is not None and len(charuco_ids) >= settings.MIN_CORNERS_PER_IMAGE:
+        if ret and charuco_corners is not None and charuco_ids is not None and len(charuco_ids) >= settings.MIN_CORNERS_PER_IMAGE:
             all_corners.append(charuco_corners)
             all_ids.append(charuco_ids)
             valid_images.append(img_path)
@@ -151,7 +155,7 @@ ret, camera_matrix, dist_coeffs, rvecs, tvecs = cv2.aruco.calibrateCameraCharuco
     charucoCorners=all_corners,
     charucoIds=all_ids,
     board=charuco_board,
-    imageSize=image_size,  # (640, 640)
+    imageSize=(settings.YOLO_INPUT_SHAPE[1], settings.YOLO_INPUT_SHAPE[0]),  # (width, height)
     cameraMatrix=None,
     distCoeffs=None
 )
@@ -169,15 +173,17 @@ print(dist_coeffs)
 
 # Calculate expected focal length range
 average_scale = np.mean([s['scale_ratio'] for s in letterbox_stats])
-expected_focal_length = 3104 * average_scale  # Your original fx was ~3104
-print(f"\nSanity check:")
+print(f"\nCalibration info:")
 print(f"  Average scale ratio: {average_scale:.4f}")
-print(f"  Expected focal length: {expected_focal_length:.1f} pixels")
 print(f"  Actual focal length: fx={camera_matrix[0,0]:.1f}, fy={camera_matrix[1,1]:.1f}")
 
 # Check if focal lengths are reasonable
 fx, fy = camera_matrix[0,0], camera_matrix[1,1]
-if 400 < fx < 800 and 400 < fy < 800:
+
+expected_range_min = settings.YOLO_INPUT_SIZE * 0.5   # 320 pixels
+expected_range_max = settings.YOLO_INPUT_SIZE * 1.5   # 960 pixels
+
+if expected_range_min < fx < expected_range_max and expected_range_min < fy < expected_range_max:
     print("  ✅ Focal lengths look reasonable for 640x640 images")
 else:
     print("  ⚠️  Focal lengths seem unusual - check your calibration")
@@ -186,17 +192,38 @@ else:
 total_error = 0
 error_details = []
 
-for i in range(len(all_corners)):
-    # Project corners back to image
-    projected_corners, _ = cv2.projectPoints(
-        charuco_board.getChessboardCorners()[all_ids[i].flatten()],
-        rvecs[i], tvecs[i], camera_matrix, dist_coeffs
-    )
+if len(all_corners) == 0:
+    print("⚠️ No corners to calculate reprojection error")
+    mean_error = float('inf')
+    quality = "Failed - no valid corners"
+else:
+    for i in range(len(all_corners)):
+        # Get the 3D coordinates for only the detected corners
+        board_corners_3d = charuco_board.getChessboardCorners()
+        detected_corner_ids = all_ids[i].flatten()
+        if np.any(detected_corner_ids >= len(board_corners_3d)):
+            print(f"Warning: Invalid corner ID detected in {os.path.basename(valid_images[i])}")
+            continue
+        detected_3d_points = board_corners_3d[detected_corner_ids]
+
+        try:
+            projected_corners, _ = cv2.projectPoints(
+                detected_3d_points, rvecs[i], tvecs[i], camera_matrix, dist_coeffs
+            )
+        except cv2.error as e:
+            print(f"Projection failed for {os.path.basename(valid_images[i])}: {e}")
+            continue
     
-    # Calculate error
-    error = cv2.norm(all_corners[i], projected_corners, cv2.NORM_L2) / len(projected_corners)
-    total_error += error
-    error_details.append((valid_images[i], error))
+        # Calculate error
+        error = cv2.norm(all_corners[i], projected_corners, cv2.NORM_L2) / len(projected_corners)
+        
+        # Clamp extreme errors that might indicate calculation issues
+        if error > 10.0:
+            print(f"⚠️ Very high reprojection error ({error:.2f}) for {os.path.basename(valid_images[i])} - possible calibration issue")
+            error = 10.0  # Clamp to prevent one bad image from skewing the average
+        
+        total_error += error
+        error_details.append((valid_images[i], error))
 
 mean_error = total_error / len(all_corners)
 print(f"\nMean reprojection error: {mean_error:.4f} pixels")
@@ -242,8 +269,8 @@ calib_data = {
     'calibration_quality': quality,
     # YOLO-specific metadata
     'yolo_letterbox': True,
-    'yolo_input_size': utils.YOLO_INPUT_SIZE,
-    'letterbox_color': utils.LETTERBOX_COLOR,
+    'yolo_input_size': settings.YOLO_INPUT_SIZE,
+    'letterbox_color': settings.LETTERBOX_COLOR,
     'average_scale_ratio': float(avg_scale),
     'average_padding_w': float(avg_padding_w),
     'average_padding_h': float(avg_padding_h),

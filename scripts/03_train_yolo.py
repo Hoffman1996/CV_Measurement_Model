@@ -1,6 +1,8 @@
 #   03_train_yolo.py
 from ultralytics import YOLO
 import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pathlib import Path
 import yaml
 import torch
@@ -8,13 +10,13 @@ import config.settings as settings
 
 def train_yolo_model():
     # === CONFIGURATION ===
-    model_arch = MODEL_ARCHITECTURE
-    data_yaml = DATA_YAML
-    imgsz = 640  # Image size for training 640x640
-    epochs = 100  # Increased for better convergence
-    batch = 16    # Adjust based on your GPU memory
-    project = TRAINING_OUTPUT_DIR
-    name = MODEL_NAME
+    model_arch = settings.MODEL_ARCHITECTURE
+    data_yaml = settings.DATA_YAML
+    imgsz = settings.YOLO_INPUT_SIZE  # Image size for training 640x640
+    epochs = settings.TRAINING_EPOCHS  # Increased for better convergence
+    batch = settings.TRAINING_BATCH_SIZE  # Adjust based on your GPU memory
+    project = settings.TRAINING_OUTPUT_DIR
+    name = settings.MODEL_NAME
 
     # Create output directory
     os.makedirs(project, exist_ok=True)
@@ -56,7 +58,7 @@ def train_yolo_model():
         len(list(val_images.glob('*.png')))
 
     # Check for test set
-    test_images = Path("datasets/yolo_dataset/test/images")
+    test_images = Path(settings.TEST_IMAGES_DIR)
     test_count = 0
     if test_images.exists():
         test_count = len(list(test_images.glob('*.jpg'))) + \
@@ -69,25 +71,25 @@ def train_yolo_model():
 
     print(f"Training images found: {train_count}")
     print(f"Validation images found: {val_count}")
-    if test_count > 0:
-        print(f"Test images found: {test_count}")
     print(f"Total dataset size: {total_images}")
 
-    # Verify the split ratios match your intended 75/15/10 split
+    # Verify the split ratios match intended 75/15/10 split
     if total_images > 0:
         train_ratio = (train_count / total_images) * 100
         val_ratio = (val_count / total_images) * 100
         test_ratio = (test_count / total_images) * 100
         print(
             f"Dataset split: Train {train_ratio:.1f}% | Val {val_ratio:.1f}% | Test {test_ratio:.1f}%")
-
-        # Warn if ratios seem off from expected 75/15/10
-        if abs(train_ratio - 75) > 5:
-            print(f"⚠️  Training set is {train_ratio:.1f}% (expected ~75%)")
-        if abs(val_ratio - 15) > 5:
-            print(f"⚠️  Validation set is {val_ratio:.1f}% (expected ~15%)")
-        if test_count > 0 and abs(test_ratio - 10) > 5:
-            print(f"⚠️  Test set is {test_ratio:.1f}% (expected ~10%)")
+    else:
+        train_ratio = val_ratio = test_ratio = 0
+    
+    # Warn if ratios seem off from expected 75/15/10
+    if abs(train_ratio - 75) > 5:
+        print(f"⚠️  Training set is {train_ratio:.1f}% (expected ~75%)")
+    if abs(val_ratio - 15) > 5:
+        print(f"⚠️  Validation set is {val_ratio:.1f}% (expected ~15%)")
+    if test_count > 0 and abs(test_ratio - 10) > 5:
+        print(f"⚠️  Test set is {test_ratio:.1f}% (expected ~10%)")
 
     print("=" * 40)
 
@@ -106,7 +108,7 @@ def train_yolo_model():
 
     print("Starting training...")
     results = model.train(
-        task='segment',  # Use 'segment' for segmentation
+        task='detect',  # Use 'detect' for object detection
         data=data_yaml,
         epochs=epochs,
         imgsz=imgsz,
@@ -123,9 +125,6 @@ def train_yolo_model():
         lr0=0.01,  # Initial learning rate
         warmup_epochs=3,  # Warmup epochs
         cos_lr=True,  # Use cosine learning rate scheduler
-        augment=True,           # Enable/force augmentations
-        fliplr=0.5,             # Horizontal flip probability
-        flipud=0.0,             # Vertical flip probability
         hsv_h=0.01,             # Reduce HSV hue augmentation (was too aggressive)
         hsv_s=0.5,              # Reduce HSV saturation augmentation
         hsv_v=0.3,              # Reduce HSV value augmentation
