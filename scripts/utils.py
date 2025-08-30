@@ -5,6 +5,35 @@ import os
 import glob
 from datetime import datetime
 import config.settings as settings
+from pathlib import Path
+
+
+def count_images(directory):
+    """Count jpg and png images in directory"""
+    path = Path(directory)
+    if not path.exists():
+        return 0
+    return len(list(path.glob("*.jpg"))) + len(list(path.glob("*.png")))
+
+
+def get_detector_params():
+    detector_params = cv2.aruco.DetectorParameters()
+    detector_params.adaptiveThreshWinSizeMin = settings.ADAPTIVE_THRESH_WIN_SIZE_MIN
+    detector_params.adaptiveThreshWinSizeMax = settings.ADAPTIVE_THRESH_WIN_SIZE_MAX
+    detector_params.adaptiveThreshWinSizeStep = settings.ADAPTIVE_THRESH_WIN_SIZE_STEP
+    detector_params.minMarkerPerimeterRate = settings.MIN_MARKER_PERIMETER_RATE
+    detector_params.maxMarkerPerimeterRate = settings.MAX_MARKER_PERIMETER_RATE
+    detector_params.cornerRefinementMethod = settings.CORNER_REFINEMENT_METHOD
+    return detector_params
+
+
+def create_charuco_board():
+    return cv2.aruco.CharucoBoard(
+        size=(settings.CHARUCOBOARD_COLCOUNT, settings.CHARUCOBOARD_ROWCOUNT),
+        squareLength=settings.SQUARE_LENGTH,
+        markerLength=settings.MARKER_LENGTH,
+        dictionary=cv2.aruco.getPredefinedDictionary(settings.ARUCO_DICT_ID),
+    )
 
 
 def load_camera_calibration(calib_file=settings.CALIB_OUTPUT_FILE):

@@ -39,6 +39,8 @@ test_predictions/
 
 # Roboflow & datasets (if auto-downloaded or archived)
 datasets/
+charuco_images/
+s20plus_images_with_ChArUco/
 
 # VSCode settings (optional)
 .vscode/

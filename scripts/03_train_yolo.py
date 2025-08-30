@@ -1,10 +1,11 @@
-#   03_train_yolo.py
 from ultralytics import YOLO
 import os
 from pathlib import Path
 import yaml
 import torch
 import config.settings as settings
+import scripts.utils as utils
+
 
 def train_yolo_model():
     # === CONFIGURATION ===
@@ -24,7 +25,7 @@ def train_yolo_model():
         raise FileNotFoundError(f"Data config file not found: {data_yaml}")
 
     # Load and verify data.yaml
-    with open(data_yaml, 'r') as f:
+    with open(data_yaml, "r") as f:
         data_config = yaml.safe_load(f)
 
     print("=== TRAINING CONFIGURATION ===")
@@ -39,28 +40,25 @@ def train_yolo_model():
     print("=" * 40)
 
     # Verify training and validation directories exist
-    train_images = Path(data_config['train'])
-    val_images = Path(data_config['val'])
+    train_images = Path(data_config["train"])
+    val_images = Path(data_config["val"])
 
     if not train_images.exists():
-        raise FileNotFoundError(
-            f"Training images directory not found: {train_images}")
+        raise FileNotFoundError(f"Training images directory not found: {train_images}")
     if not val_images.exists():
-        raise FileNotFoundError(
-            f"Validation images directory not found: {val_images}")
+        raise FileNotFoundError(f"Validation images directory not found: {val_images}")
 
     # Count images in train and validation sets
-    train_count = len(list(train_images.glob('*.jpg'))) + \
-        len(list(train_images.glob('*.png')))
-    val_count = len(list(val_images.glob('*.jpg'))) + \
-        len(list(val_images.glob('*.png')))
+    train_count = utils.count_images(train_images)
+    val_count = utils.count_images(val_images)
 
     # Check for test set
     test_images = Path(settings.TEST_IMAGES_DIR)
     test_count = 0
     if test_images.exists():
-        test_count = len(list(test_images.glob('*.jpg'))) + \
-            len(list(test_images.glob('*.png')))
+        test_count = len(list(test_images.glob("*.jpg"))) + len(
+            list(test_images.glob("*.png"))
+        )
         print(f"Test images found: {test_count}")
     else:
         print("⚠️  No test set found. Consider creating one for final model evaluation.")
@@ -77,10 +75,11 @@ def train_yolo_model():
         val_ratio = (val_count / total_images) * 100
         test_ratio = (test_count / total_images) * 100
         print(
-            f"Dataset split: Train {train_ratio:.1f}% | Val {val_ratio:.1f}% | Test {test_ratio:.1f}%")
+            f"Dataset split: Train {train_ratio:.1f}% | Val {val_ratio:.1f}% | Test {test_ratio:.1f}%"
+        )
     else:
         train_ratio = val_ratio = test_ratio = 0
-    
+
     # Warn if ratios seem off from expected 75/15/10
     if abs(train_ratio - 75) > 5:
         print(f"⚠️  Training set is {train_ratio:.1f}% (expected ~75%)")
@@ -95,18 +94,12 @@ def train_yolo_model():
     print("Initializing YOLO model...")
     model = YOLO(model_arch)
 
-    if torch.cuda.is_available():
-        # Make sure we expose GPU 0
-        os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
-        yolo_device = "0"   # explicit single-GPU
-        print("✅ CUDA available. Using GPU 0.")
-    else:
-        yolo_device = "cpu"
-        print("⚠️  CUDA not available to PyTorch at runtime. Falling back to CPU.")
+    yolo_device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Using device: {yolo_device}")
 
     print("Starting training...")
     results = model.train(
-        task='detect',  # Use 'detect' for object detection
+        task="obb",  # Use 'obb' for oriented bounding box detection
         data=data_yaml,
         epochs=epochs,
         imgsz=imgsz,
@@ -118,20 +111,24 @@ def train_yolo_model():
         val=True,
         patience=30,  # Early stopping patience to prevent overfitting
         device=yolo_device,  # Use GPU if available
-        workers=4,  # Number of worker threads
-        optimizer='AdamW',  # Modern optimizer
-        lr0=0.01,  # Initial learning rate
-        warmup_epochs=3,  # Warmup epochs
+        optimizer="AdamW",  # Modern optimizer
+        lr0=0.005,  # Initial learning rate
+        lrf=0.01,  # Final learning rate (0.01)
+        warmup_epochs=2,  # Warmup epochs
         cos_lr=True,  # Use cosine learning rate scheduler
-        hsv_h=0.01,             # Reduce HSV hue augmentation (was too aggressive)
-        hsv_s=0.5,              # Reduce HSV saturation augmentation
-        hsv_v=0.3,              # Reduce HSV value augmentation
-        erasing=0.2,            # Reduce random erasing (was removing too much)
-        mixup=0.1,              # Add slight mixup for better generalization
-        copy_paste=0.1,         # Add copy-paste augmentation for object detection
-        mosaic=0.5,             # Add mosaic augmentation
-        scale=0.8,              # Scale augmentation range
-        translate=0.1,          
+        hsv_h=0.005,  # Reduce HSV hue augmentation (was too aggressive)
+        hsv_s=0.3,  # Reduce HSV saturation augmentation
+        hsv_v=0.2,  # Reduce HSV value augmentation
+        erasing=0.1,  # Reduce random erasing (was removing too much)
+        mixup=0.0,  # Add slight mixup for better generalization
+        copy_paste=0.0,  # Add copy-paste augmentation for object detection
+        scale=0.2,  # Scale augmentation range
+        translate=0.05,
+        mosaic=0.5,  # Enable mosaic augmentation
+        close_mosaic=10,  # Disable close mosaic to avoid overfitting
+        degrees=5.0,  # Enable rotation augmentation
+        fliplr=0.5,  # Enable horizontal flip augmentation
+        flipud=0.0,
     )
 
     # === TRAINING RESULTS ===
@@ -146,30 +143,27 @@ def train_yolo_model():
         best_model = YOLO(f"{results.save_dir}/weights/best.pt")
         metrics = best_model.val()
 
-        # Segmentation metrics
-        print(f"Box mAP50: {metrics.box.map50:.4f}")
-        print(f"Box mAP50-95: {metrics.box.map:.4f}")
-        print(f"Mask mAP50: {metrics.seg.map50:.4f}")
-        print(f"Mask mAP50-95: {metrics.seg.map:.4f}")
-        print(f"Box Precision: {metrics.box.mp:.4f}")
-        print(f"Box Recall: {metrics.box.mr:.4f}")
-        print(f"Mask Precision: {metrics.seg.mp:.4f}")
-        print(f"Mask Recall: {metrics.seg.mr:.4f}")
+        # OBB metrics
+        print(f"mAP50: {metrics.box.map50:.4f}")
+        print(f"mAP50-95: {metrics.box.map:.4f}")
+        print(f"Precision: {metrics.box.mp:.4f}")
+        print(f"Recall: {metrics.box.mr:.4f}")
 
         # Class-specific metrics
-        if hasattr(metrics.box, 'ap_class_index') and metrics.box.ap_class_index is not None:
-            for i, class_name in enumerate(data_config['names']):
+        if (
+            hasattr(metrics.box, "ap_class_index")
+            and metrics.box.ap_class_index is not None
+        ):
+            for i, class_name in enumerate(data_config["names"]):
                 if i < len(metrics.box.ap50):
-                    print(f"{class_name} - Box AP50: {metrics.box.ap50[i]:.4f}")
-                if i < len(metrics.seg.ap50):
-                    print(f"{class_name} - Mask AP50: {metrics.seg.ap50[i]:.4f}")
+                    print(f"{class_name} - AP50: {metrics.box.ap50[i]:.4f}")
 
     except Exception as e:
         print(f"Error getting detailed metrics: {e}")
 
     # === SAVE TRAINING SUMMARY ===
     summary_file = f"{results.save_dir}/training_summary.txt"
-    with open(summary_file, 'w') as f:
+    with open(summary_file, "w") as f:
         f.write("=== YOLO TRAINING SUMMARY ===\n")
         f.write(f"Model Architecture: {model_arch}\n")
         f.write(f"Dataset: {data_yaml}\n")
@@ -179,7 +173,8 @@ def train_yolo_model():
         f.write(f"Test Images: {test_count}\n")
         f.write(f"Total Images: {total_images}\n")
         f.write(
-            f"Dataset Split: Train {train_ratio:.1f}% | Val {val_ratio:.1f}% | Test {test_ratio:.1f}%\n")
+            f"Dataset Split: Train {train_ratio:.1f}% | Val {val_ratio:.1f}% | Test {test_ratio:.1f}%\n"
+        )
         f.write(f"Epochs: {epochs}\n")
         f.write(f"Batch Size: {batch}\n")
         f.write(f"Image Size: {imgsz}\n")
@@ -192,14 +187,10 @@ def train_yolo_model():
 
     return results.save_dir
 
+
 if __name__ == "__main__":
     try:
         output_dir = train_yolo_model()
-        print(f"\n✅ Next steps:")
-        print(f"   1. Check training plots in: {output_dir}")
-        print(
-            f"   2. Use best model for inference: {output_dir}/weights/best.pt")
-        print(f"   3. Run 04_predict_on_test.py with the trained model")
     except Exception as e:
         print(f"❌ Training failed: {e}")
         raise
