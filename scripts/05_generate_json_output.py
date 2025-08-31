@@ -8,37 +8,38 @@ import os
 from pathlib import Path
 from datetime import datetime
 import scripts.utils as utils
+import config.settings as settings
 
 
 def generate_json_output():
     """Main function to process S20+ images and generate JSON output"""
+    s20plus_images_dir = settings.IMAGES_WITH_CHARUCO_DIR
+    model, best_model_path = utils.load_yolo_model(s20plus_images_dir)
 
-    # === CONFIGURATION ===
-    model_path = "yolo_training_output/yolo11s-seg_frame_detector/weights/best.pt"
-    s20plus_images_dir = "s20plus_images_with_ChArUco"
-    calib_file = (
-        "config/s20plus_calib_640x640_letterbox.yaml"  # Use letterbox calibration
-    )
-    output_file = "detection_results_segmentation_fixed.json"  # New filename
-    confidence_threshold = 0.75
+    # # === CONFIGURATION ===
+    # model_path = f"{settings.TRAINING_OUTPUT_DIR}/{settings.MODEL_NAME}/weights/best.pt"
+    # s20plus_images_dir = "s20plus_images_with_ChArUco"
+    # calib_file = settings.CALIB_OUTPUT_FILE
+    # output_file = settings.OUTPUT_JSON_FILE
+    # confidence_threshold = settings.CONFIDENCE_THRESHOLD
 
-    # === LOAD MODEL AND CALIBRATION ===
-    if not os.path.exists(model_path):
-        print(f"❌ Model not found: {model_path}")
-        print("Please train the model first using 03_train_yolo.py")
-        return
+    # # === LOAD MODEL AND CALIBRATION ===
+    # if not os.path.exists(model_path):
+    #     print(f"❌ Model not found: {model_path}")
+    #     print("Please train the model first using 03_train_yolo.py")
+    #     return
 
-    if not os.path.exists(calib_file):
-        print(f"❌ Calibration file not found: {calib_file}")
-        print("Please run camera calibration first.")
-        return
+    # # if not os.path.exists(calib_file):
+    # #     print(f"❌ Calibration file not found: {calib_file}")
+    # #     print("Please run camera calibration first.")
+    # #     return
 
-    if not os.path.exists(s20plus_images_dir):
-        print(f"❌ S20+ images directory not found: {s20plus_images_dir}")
-        return
+    # if not os.path.exists(s20plus_images_dir):
+    #     print(f"❌ S20+ images directory not found: {s20plus_images_dir}")
+    #     return
 
-    print("Loading YOLO segmentation model...")
-    model = YOLO(model_path)
+    # print("Loading YOLO segmentation model...")
+    # model = YOLO(model_path)
 
     print("Loading camera calibration...")
     calib_data = utils.load_camera_calibration(calib_file)

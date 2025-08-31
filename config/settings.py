@@ -1,3 +1,4 @@
+# config/setting.py
 import cv2
 
 # === YOLO SETTINGS ===
@@ -18,8 +19,8 @@ TEST_LABELS_DIR = "datasets/yolo_dataset/test/labels"
 TEST_PREDICTIONS_OUTPUT_DIR = "test_predictions"
 VALID_IMAGES_DIR = "datasets/yolo_dataset/valid/images"
 VALID_LABELS_DIR = "datasets/yolo_dataset/valid/labels"
-CONFIDENCE_THRESHOLD = 0.9
-IOU_THRESHOLD = 0.6
+CONFIDENCE_THRESHOLD = 0.8
+IOU_THRESHOLD = 0.65
 
 
 # === CHARUCO BOARD SETTINGS ===
@@ -29,6 +30,7 @@ SQUARE_LENGTH = 0.04  # 40 mm in meters
 MARKER_LENGTH = 0.03  # 30 mm in meters
 CALIB_IMAGES_DIR = "charuco_images/calibration_set"
 CALIB_OUTPUT_FILE = "config/s20plus_calib_640x640_letterbox.yaml"
+IMAGES_WITH_CHARUCO_DIR = "s20plus_images_with_ChArUco"
 ARUCO_DICT_ID = cv2.aruco.DICT_6X6_250
 ARUCO_DICT = cv2.aruco.getPredefinedDictionary(ARUCO_DICT_ID)
 
@@ -47,3 +49,13 @@ ADAPTIVE_THRESH_WIN_SIZE_STEP = 10
 MIN_MARKER_PERIMETER_RATE = 0.01
 MAX_MARKER_PERIMETER_RATE = 2.0
 CORNER_REFINEMENT_METHOD = cv2.aruco.CORNER_REFINE_SUBPIX
+
+
+OUTPUT_JSON_FILE = "detection_results_segmentation_fixed.json"
+
+# === WINDOW MEASUREMENT SETTINGS ===
+MEASUREMENT_OUTPUT_DIR = "measurement_results"
+MEASUREMENT_ACCURACY_TARGET_MM = 10  # Target accuracy in millimeters
+
+unlabeled_images_dir = "testing_images/unlabeled"
+labeled_images_dir = "testing_images/labeled"

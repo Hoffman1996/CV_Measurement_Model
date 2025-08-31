@@ -5,32 +5,12 @@ import random
 import numpy as np
 from scipy import stats
 from pathlib import Path
-from ultralytics import YOLO
 import scripts.utils as utils
 import matplotlib.pyplot as plt
 import config.settings as settings
 
-
-def load_model_and_validate_paths():
-    """Load YOLO model and validate all required paths."""
-    best_model_path = (
-        f"{settings.TRAINING_OUTPUT_DIR}/{settings.MODEL_NAME}/weights/best.pt"
-    )
-
-    # Validate model exists
-    if not os.path.exists(best_model_path):
-        raise FileNotFoundError(f"Model not found at: {best_model_path}")
-
-    # Validate test directory exists
-    if not os.path.exists(settings.TEST_IMAGES_DIR):
-        raise FileNotFoundError(
-            f"Test images directory not found: {settings.TEST_IMAGES_DIR}"
-        )
-
-    print(f"Loading model from: {best_model_path}")
-    model = YOLO(best_model_path)
-
-    return model, best_model_path
+# test_dir = settings.unlabeled_images_dir
+test_dir = settings.TEST_IMAGES_DIR
 
 
 def get_test_images():
@@ -39,10 +19,10 @@ def get_test_images():
     test_images = []
 
     for ext in image_extensions:
-        test_images.extend(list(Path(settings.TEST_IMAGES_DIR).glob(ext)))
+        test_images.extend(list(Path(test_dir).glob(ext)))
 
     if not test_images:
-        raise FileNotFoundError(f"No test images found in: {settings.TEST_IMAGES_DIR}")
+        raise FileNotFoundError(f"No test images found in: {test_dir}")
 
     print(f"Found {len(test_images)} test images")
     return test_images
@@ -74,12 +54,14 @@ def process_single_image(model, img_path, confidence_threshold, iou_threshold):
     results = model.predict(
         task="obb",
         source=str(img_path),
+        imgsz=settings.YOLO_INPUT_SIZE,
+        rect=False,
         conf=confidence_threshold,
         iou=iou_threshold,
         save=False,
         verbose=False,
-        max_det=1,
-        agnostic_nms=True,
+        max_det=1,  # limit to 3 detections per image
+        agnostic_nms=False,  # Force to choose only class 'frame'
     )
 
     inference_time = time.time() - start_time
@@ -174,7 +156,7 @@ def save_summary_to_file(
         f.write(f"Model type: {settings.MODEL_ARCHITECTURE}\n")
         f.write(f"Confidence threshold: {confidence_threshold}\n")
         f.write(f"IoU threshold: {iou_threshold}\n")
-        f.write(f"Test images directory: {settings.TEST_IMAGES_DIR}\n")
+        f.write(f"Test images directory: {test_dir}\n")
         f.write(f"Total images processed: {stats['total_images']}\n")
         f.write(
             f"Images with detections: {stats['images_with_detections']} "
@@ -210,7 +192,7 @@ def predict_on_test_images():
 
     try:
         # Load model and validate paths
-        model, best_model_path = load_model_and_validate_paths()
+        model, best_model_path = utils.load_model_and_validate_paths(test_dir)
 
         # Get test images
         test_images = get_test_images()

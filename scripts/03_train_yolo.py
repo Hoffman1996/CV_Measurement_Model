@@ -113,13 +113,13 @@ def train_yolo_model():
         device=yolo_device,  # Use GPU if available
         optimizer="AdamW",  # Modern optimizer
         lr0=0.005,  # Initial learning rate
-        lrf=0.01,  # Final learning rate (0.01)
+        lrf=0.01,
         warmup_epochs=2,  # Warmup epochs
         cos_lr=True,  # Use cosine learning rate scheduler
-        hsv_h=0.005,  # Reduce HSV hue augmentation (was too aggressive)
+        hsv_h=0.005,  # Reduce HSV hue augmentation
         hsv_s=0.3,  # Reduce HSV saturation augmentation
         hsv_v=0.2,  # Reduce HSV value augmentation
-        erasing=0.1,  # Reduce random erasing (was removing too much)
+        erasing=0.1,  # Reduce random erasing
         mixup=0.0,  # Add slight mixup for better generalization
         copy_paste=0.0,  # Add copy-paste augmentation for object detection
         scale=0.2,  # Scale augmentation range
