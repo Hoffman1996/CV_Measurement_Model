@@ -79,7 +79,7 @@ yolo_training_output/
 *.pt
 *.ckpt
 
-## If a file was already committed before you added it to .gitignore, Git will keep tracking it. To stop tracking without deleting your working copy:
+## Remove file from Git without deleting local copy
 git rm -r --cached .
 git add .
 git commit -m "Refresh .gitignore (stop tracking ignored files)"

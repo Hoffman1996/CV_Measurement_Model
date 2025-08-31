@@ -25,7 +25,7 @@ desktop.ini
 *.json
 *.ckpt
 *.zip
-*.pt
+# *.pt
 
 # Model output / checkpoints
 runs/
@@ -37,10 +37,10 @@ visualization_output/
 letterbox_preview/
 test_predictions/
 
-# Roboflow & datasets (if auto-downloaded or archived)
+# Datasets
 datasets/
 charuco_images/
-s20plus_images_with_ChArUco/
+# s20plus_images_with_ChArUco/
 
 # VSCode settings (optional)
 .vscode/

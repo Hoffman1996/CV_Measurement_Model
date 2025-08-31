@@ -4,7 +4,7 @@ import cv2
 YOLO_INPUT_SIZE = 1024
 YOLO_INPUT_SHAPE = (YOLO_INPUT_SIZE, YOLO_INPUT_SIZE)
 LETTERBOX_COLOR = (255, 255, 255)  # White to match wall paint color
-MODEL_ARCHITECTURE = "yolo11s-seg.pt"
+MODEL_ARCHITECTURE = "yolo11s-obb.pt"
 model_name_without_suffix = MODEL_ARCHITECTURE[:-3]
 DATA_YAML = "datasets/yolo_dataset/data.yaml"
 TRAINING_OUTPUT_DIR = "yolo_training_output"
@@ -18,8 +18,8 @@ CHARUCOBOARD_ROWCOUNT = 5
 CHARUCOBOARD_COLCOUNT = 5
 SQUARE_LENGTH = 0.04  # 40 mm in meters
 MARKER_LENGTH = 0.03  # 30 mm in meters
-# CALIB_IMAGES_DIR = "charuco_images/calibration_set"
-# CALIB_OUTPUT_FILE = "config/s20plus_calib_640x640_letterbox.yaml"
+CALIB_IMAGES_DIR = "charuco_images/calibration_set"
+CALIB_OUTPUT_FILE = "config/s20plus_calib_640x640_letterbox.yaml"
 ARUCO_DICT_ID = cv2.aruco.DICT_6X6_250
 ARUCO_DICT = cv2.aruco.getPredefinedDictionary(ARUCO_DICT_ID)
 

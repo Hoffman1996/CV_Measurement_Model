@@ -109,7 +109,7 @@ def train_yolo_model():
         save=True,
         plots=True,
         val=True,
-        patience=30,  # Early stopping patience to prevent overfitting
+        patience=15,  # Early stopping patience to prevent overfitting
         device=yolo_device,  # Use GPU if available
         optimizer="AdamW",  # Modern optimizer
         lr0=0.005,  # Initial learning rate
