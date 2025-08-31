@@ -1,0 +1,13 @@
+YOLO OBB MODEL PREDICTION SUMMARY
+========================================
+Model used: yolo_training_output/yolo11s-obb_frame_detector/weights/best.pt
+Model type: yolo11s-obb.pt
+Confidence threshold: 0.25
+IoU threshold: 0.6
+Test images directory: datasets/yolo_dataset/test/images
+Total images processed: 123
+Images with detections: 123 (100.0%)
+Total detections: 123
+Average detections per image: 1.00
+Average inference time: 0.038s
+Mean confidence score: 0.890

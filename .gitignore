@@ -32,10 +32,10 @@ runs/
 weights/
 output/
 checkpoints/
-yolo_training_output/
+# yolo_training_output/
 visualization_output/
 letterbox_preview/
-test_predictions/
+# test_predictions/
 
 # Datasets
 datasets/
