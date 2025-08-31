@@ -8,6 +8,7 @@ import config.settings as settings
 from pathlib import Path
 
 
+# for 03_train_yolo.py
 def count_images(directory):
     """Count jpg and png images in directory"""
     path = Path(directory)
@@ -32,7 +33,7 @@ def create_charuco_board():
         size=(settings.CHARUCOBOARD_COLCOUNT, settings.CHARUCOBOARD_ROWCOUNT),
         squareLength=settings.SQUARE_LENGTH,
         markerLength=settings.MARKER_LENGTH,
-        dictionary=cv2.aruco.getPredefinedDictionary(settings.ARUCO_DICT_ID),
+        dictionary=settings.ARUCO_DICT,
     )
 
 
@@ -712,3 +713,6 @@ def process_s20plus_image(image_path, model, calib_data, confidence_threshold=0.
         "total_detections": len(detections),
         "detections": detections,
     }
+
+
+############### script 04 ###############

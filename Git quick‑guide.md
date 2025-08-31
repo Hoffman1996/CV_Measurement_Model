@@ -81,7 +81,6 @@ yolo_training_output/
 
 ## Remove file from Git without deleting local copy
 git rm -r --cached .
-git add .
 git commit -m "Refresh .gitignore (stop tracking ignored files)"
 git push
 (This clears the index, re-adds only non-ignored files, and preserves anything ignored on disk.)

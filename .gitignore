@@ -25,7 +25,7 @@ desktop.ini
 *.json
 *.ckpt
 *.zip
-# *.pt
+*.pt
 
 # Model output / checkpoints
 runs/
@@ -40,7 +40,7 @@ test_predictions/
 # Datasets
 datasets/
 charuco_images/
-# s20plus_images_with_ChArUco/
+s20plus_images_with_ChArUco/
 
 # VSCode settings (optional)
 .vscode/

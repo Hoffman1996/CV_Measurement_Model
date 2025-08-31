@@ -82,9 +82,9 @@ for img_path in images:
 
     markers_ids, charuco_corners, charuco_ids = utils.detect_charuco_board(
         letterboxed_image,
-        aruco_dict,
-        charuco_board,
-        detector_params,
+        settings.ARUCO_DICTt,
+        utils.create_charuco_board(),
+        utils.get_detector_params(),
         visualize_corners_dir,
         img_path,
     )

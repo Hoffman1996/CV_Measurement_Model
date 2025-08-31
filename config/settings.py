@@ -5,13 +5,22 @@ YOLO_INPUT_SIZE = 1024
 YOLO_INPUT_SHAPE = (YOLO_INPUT_SIZE, YOLO_INPUT_SIZE)
 LETTERBOX_COLOR = (255, 255, 255)  # White to match wall paint color
 MODEL_ARCHITECTURE = "yolo11s-obb.pt"
-model_name_without_suffix = MODEL_ARCHITECTURE[:-3]
+MODEL_ARCHITECTURE_NAME = MODEL_ARCHITECTURE[:-3]
 DATA_YAML = "datasets/yolo_dataset/data.yaml"
 TRAINING_OUTPUT_DIR = "yolo_training_output"
-MODEL_NAME = f"{model_name_without_suffix}_frame_detector"
+MODEL_NAME = f"{MODEL_ARCHITECTURE_NAME}_frame_detector"
 TRAINING_EPOCHS = 150
 TRAINING_BATCH_SIZE = 8
+
+# === YOLO TEST SETTINGS ===
 TEST_IMAGES_DIR = "datasets/yolo_dataset/test/images"
+TEST_LABELS_DIR = "datasets/yolo_dataset/test/labels"
+TEST_PREDICTIONS_OUTPUT_DIR = "test_predictions"
+VALID_IMAGES_DIR = "datasets/yolo_dataset/valid/images"
+VALID_LABELS_DIR = "datasets/yolo_dataset/valid/labels"
+CONFIDENCE_THRESHOLD = 0.9
+IOU_THRESHOLD = 0.6
+
 
 # === CHARUCO BOARD SETTINGS ===
 CHARUCOBOARD_ROWCOUNT = 5
