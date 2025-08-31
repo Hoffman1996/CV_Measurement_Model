@@ -78,24 +78,25 @@ class WindowMeasurementSystem:
 
         return pixels_per_mm, True
 
-    def detect_windows(self, image):
+    def detect_windows(self, image_path):
         """
-        Detect windows using the trained YOLO model.
+        Detect windows using the trained YOLO model via existing utils function.
 
         Returns:
             - detections: List of window detections with coordinates
+            - inference_time: Time taken for prediction
         """
-        results = self.yolo_model.predict(
-            task="obb",
-            source=image,
-            conf=settings.CONFIDENCE_THRESHOLD,
-            iou=settings.IOU_THRESHOLD,
-            save=False,
-            verbose=False,
-            max_det=5,
+        # Use existing utils function but adjust max_det for measurement context
+        result, inference_time, image = utils.process_single_image(
+            self.yolo_model,
+            image_path,
+            settings.CONFIDENCE_THRESHOLD,
+            settings.IOU_THRESHOLD,
         )
 
-        result = results[0]
+        if result is None:
+            return [], 0
+
         detections = []
 
         if len(result.obb) > 0:
@@ -111,8 +112,8 @@ class WindowMeasurementSystem:
                 }
                 detections.append(detection)
 
-        print(f"Detected {len(detections)} windows")
-        return detections
+        print(f"Detected {len(detections)} windows in {inference_time:.3f}s")
+        return detections, inference_time
 
     def calculate_window_dimensions(self, detection, pixels_per_mm):
         """
@@ -206,7 +207,7 @@ class WindowMeasurementSystem:
             }
 
         # Detect windows
-        window_detections = self.detect_windows(image)
+        window_detections, inference_time = self.detect_windows(image_path)
 
         if not window_detections:
             return {
@@ -223,6 +224,7 @@ class WindowMeasurementSystem:
             "image_path": str(image_path),
             "pixels_per_mm": pixels_per_mm,
             "calibration_accuracy_target_mm": self.target_accuracy_mm,
+            "inference_time_seconds": inference_time,
             "windows": [],
         }
 
