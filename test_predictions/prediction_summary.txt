@@ -4,10 +4,10 @@ Model used: yolo_training_output/yolo11s-obb_frame_detector/weights/best.pt
 Model type: yolo11s-obb.pt
 Confidence threshold: 0.8
 IoU threshold: 0.65
-Test images directory: testing_images/unlabeled
-Total images processed: 33
-Images with detections: 21 (63.6%)
-Total detections: 21
-Average detections per image: 0.64
-Average inference time: 0.115s
-Mean confidence score: 0.876
+Test images directory: datasets/yolo_dataset/test/images
+Total images processed: 123
+Images with detections: 114 (92.7%)
+Total detections: 114
+Average detections per image: 0.93
+Average inference time: 0.037s
+Mean confidence score: 0.906

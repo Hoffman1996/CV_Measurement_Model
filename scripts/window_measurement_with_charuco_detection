@@ -30,52 +30,43 @@ class WindowMeasurementSystem:
         self.target_accuracy_mm = 10
 
     def calculate_pixel_to_mm_ratio(self, charuco_corners, charuco_ids):
-        """
-        Calculate pixel-to-millimeter ratio using detected ChArUco corners.
-
-        Returns:
-            - pixels_per_mm: Ratio of pixels to millimeters
-            - success: Boolean indicating calculation success
-        """
-        if charuco_corners is None or len(charuco_corners) < 4:
+        if charuco_corners is None or len(charuco_corners) < 2:
             return None, False
 
-        # Calculate distances between adjacent corners
         pixel_distances = []
-        known_distances_mm = []
 
-        for i in range(len(charuco_ids)):
-            for j in range(i + 1, len(charuco_ids)):
-                id1, id2 = charuco_ids[i][0], charuco_ids[j][0]
+        # Create a mapping from corner ID to pixel position
+        id_to_corner = {}
+        for i, corner_id in enumerate(charuco_ids):
+            id_to_corner[corner_id[0]] = charuco_corners[i][0]
 
-                # Calculate row and column positions of corners
+        detected_ids = [cid[0] for cid in charuco_ids]
+
+        # Check all pairs of detected corners for adjacency
+        for i, id1 in enumerate(detected_ids):
+            for j, id2 in enumerate(detected_ids):
+                if i >= j:  # Skip duplicate pairs and self-comparison
+                    continue
+
+                # Calculate grid positions
                 row1, col1 = divmod(id1, self.board_cols - 1)
                 row2, col2 = divmod(id2, self.board_cols - 1)
 
-                # Check if corners are adjacent (horizontally or vertically)
+                # Check if adjacent
                 if (abs(row1 - row2) == 1 and col1 == col2) or (
                     abs(col1 - col2) == 1 and row1 == row2
                 ):
                     # Calculate pixel distance
-                    p1 = charuco_corners[i][0]
-                    p2 = charuco_corners[j][0]
+                    p1 = id_to_corner[id1]
+                    p2 = id_to_corner[id2]
                     pixel_dist = np.linalg.norm(p1 - p2)
-
                     pixel_distances.append(pixel_dist)
-                    known_distances_mm.append(self.square_size_mm)
 
         if len(pixel_distances) == 0:
-            print("No adjacent corner pairs found for calibration")
             return None, False
 
         # Calculate average pixels per mm
-        ratios = [pd / kd for pd, kd in zip(pixel_distances, known_distances_mm)]
-        pixels_per_mm = np.mean(ratios)
-
-        print(f"Calculated {len(pixel_distances)} distance measurements")
-        print(f"Pixels per mm: {pixels_per_mm:.3f}")
-        print(f"Calibration std deviation: {np.std(ratios):.3f}")
-
+        pixels_per_mm = np.mean(pixel_distances) / self.square_size_mm
         return pixels_per_mm, True
 
     def detect_windows(self, image_path):
