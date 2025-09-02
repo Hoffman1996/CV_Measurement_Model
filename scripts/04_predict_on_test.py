@@ -39,37 +39,6 @@ def initialize_stats(total_images):
     }
 
 
-def process_single_image(model, img_path, confidence_threshold, iou_threshold):
-    """Process a single image and return results."""
-    # Load image
-    image = cv2.imread(str(img_path))
-    if image is None:
-        print(f"Failed to load image: {img_path}")
-        return None, None, None
-
-    # Time the prediction
-    start_time = time.time()
-
-    # Make prediction
-    results = model.predict(
-        task="obb",
-        source=str(img_path),
-        imgsz=settings.YOLO_INPUT_SIZE,
-        rect=False,
-        conf=confidence_threshold,
-        iou=iou_threshold,
-        save=False,
-        verbose=False,
-        max_det=1,  # limit to 3 detections per image
-        agnostic_nms=False,  # Force to choose only class 'frame'
-    )
-
-    inference_time = time.time() - start_time
-    result = results[0]
-
-    return result, inference_time, image
-
-
 def process_detection_results(result, img_path, output_dir, class_names):
     """Process detection results and save visualizations."""
     detections_info = []
@@ -205,7 +174,7 @@ def predict_on_test_images():
             print(f"Processing {i+1}/{len(test_images)}: {img_path.name}")
 
             # Process single image
-            result, inference_time, image = process_single_image(
+            result, inference_time, image = utils.process_single_image(
                 model, img_path, confidence_threshold, iou_threshold
             )
 

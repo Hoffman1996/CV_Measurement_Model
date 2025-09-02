@@ -1,6 +1,8 @@
 # scripts/utils.py
+from time import time
 import cv2
 import os
+import numpy as np
 import config.settings as settings
 from pathlib import Path
 from ultralytics import YOLO
@@ -121,6 +123,52 @@ def validate_measurement_paths():
         raise FileNotFoundError(f"YOLO model not found at: {best_model_path}")
 
     return best_model_path
+
+
+def process_single_image(model, img_path, confidence_threshold, iou_threshold):
+    """Process a single image and return results."""
+    # Load image
+    image = cv2.imread(str(img_path))
+    if image is None:
+        print(f"Failed to load image: {img_path}")
+        return None, None, None
+
+    # Time the prediction
+    start_time = time()
+
+    # Make prediction
+    results = model.predict(
+        task="obb",
+        source=str(img_path),
+        imgsz=settings.YOLO_INPUT_SIZE,
+        rect=False,
+        conf=confidence_threshold,
+        iou=iou_threshold,
+        save=False,
+        verbose=False,
+        max_det=1,  # limit to 3 detections per image
+        agnostic_nms=True,  # Force to choose only class 'frame'
+    )
+
+    inference_time = time() - start_time
+    result = results[0]
+
+    return result, inference_time, image
+
+
+def convert_numpy_types(obj):
+    """Convert numpy types to Python native types for JSON serialization."""
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, (np.float32, np.float64)):
+        return float(obj)
+    elif isinstance(obj, (np.int32, np.int64)):
+        return int(obj)
+    elif isinstance(obj, dict):
+        return {key: convert_numpy_types(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(item) for item in obj]
+    return obj
 
 
 ################################################################

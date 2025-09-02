@@ -1,3 +1,5 @@
+import datetime
+import json
 import cv2
 import numpy as np
 import os
@@ -5,6 +7,7 @@ from pathlib import Path
 from ultralytics import YOLO
 import config.settings as settings
 import scripts.utils as utils
+import sys
 
 
 class WindowMeasurementSystem:
@@ -60,6 +63,9 @@ class WindowMeasurementSystem:
                     p1 = id_to_corner[id1]
                     p2 = id_to_corner[id2]
                     pixel_dist = np.linalg.norm(p1 - p2)
+                    print(
+                        f"Pixel distance between {id1} and {id2}: {pixel_dist:.2f} pixels"
+                    )
                     pixel_distances.append(pixel_dist)
 
         if len(pixel_distances) == 0:
@@ -67,6 +73,7 @@ class WindowMeasurementSystem:
 
         # Calculate average pixels per mm
         pixels_per_mm = np.mean(pixel_distances) / self.square_size_mm
+        print(f"Pixels per mm: {pixels_per_mm:.2f}")
         return pixels_per_mm, True
 
     def detect_windows(self, image_path):
@@ -129,7 +136,7 @@ class WindowMeasurementSystem:
 
         # Assuming rectangular window, opposite sides should be similar
         # Group into width and height
-        edge_lengths_pixels.sort()
+        # edge_lengths_pixels.sort()
         height_pixels = np.mean([edge_lengths_pixels[0], edge_lengths_pixels[2]])
         width_pixels = np.mean([edge_lengths_pixels[1], edge_lengths_pixels[3]])
 
@@ -298,34 +305,44 @@ def measure_window_from_image(image_path, output_dir=None):
 
 
 if __name__ == "__main__":
-    # Example usage
-    import sys
 
-    if len(sys.argv) != 2:
-        print("Usage: python window_measurement.py <image_path>")
-        sys.exit(1)
-
-    image_path = sys.argv[1]
     output_dir = "measurement_results"
+    images_paths = Path(settings.IMAGES_WITH_CHARUCO_DIR).glob("*.*")
 
-    try:
-        results = measure_window_from_image(image_path, output_dir)
+    # Create results file
+    results_file = Path(output_dir) / f"measurement_results_it_is_me_MARIO!.json"
+    all_results = []
 
-        if results["success"]:
-            print(f"\n=== MEASUREMENT RESULTS ===")
-            print(f"Image: {results['image_path']}")
-            print(f"Calibration: {results['pixels_per_mm']:.3f} pixels/mm")
-            print(f"Windows detected: {len(results['windows'])}")
+    for image_path in images_paths:
 
-            for window in results["windows"]:
-                print(f"\nWindow {window['id']}:")
-                print(
-                    f"  Dimensions: {window['width_mm']:.1f} x {window['height_mm']:.1f} mm"
-                )
-                print(f"  Confidence: {window['confidence']:.3f}")
-        else:
-            print(f"Measurement failed: {results.get('error', 'Unknown error')}")
+        try:
+            results = measure_window_from_image(image_path, output_dir)
+            all_results.append(results)
 
-    except Exception as e:
-        print(f"Error processing image: {e}")
-        sys.exit(1)
+            # if results["success"]:
+            #     print(f"\n=== MEASUREMENT RESULTS ===")
+            #     print(f"Image: {results['image_path']}")
+            #     print(f"Calibration: {results['pixels_per_mm']:.3f} pixels/mm")
+            #     print(f"Windows detected: {len(results['windows'])}")
+
+            #     for window in results["windows"]:
+            #         print(f"\nWindow {window['id']}:")
+            #         print(
+            #             f"  Dimensions: {window['width_mm']:.1f} x {window['height_mm']:.1f} mm"
+            #         )
+            #         print(f"  Confidence: {window['confidence']:.3f}")
+            # else:
+            #     print(f"Measurement failed: {results.get('error', 'Unknown error')}")
+
+        except Exception as e:
+            print(f"Error processing image: {e}")
+            all_results.append(
+                {"success": False, "error": str(e), "image_path": str(image_path)}
+            )
+
+    # Write all results to file
+    os.makedirs(output_dir, exist_ok=True)
+    with open(results_file, "w") as f:
+        json.dump(utils.convert_numpy_types(all_results), f, indent=2)
+
+    print(f"\nResults saved to: {results_file}")
