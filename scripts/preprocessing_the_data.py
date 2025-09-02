@@ -5,7 +5,9 @@ from pathlib import Path
 from collections import defaultdict
 import numpy as np
 import cv2
-import config.settings as settings
+from config import settings as settings
+
+# import config.settings as settings
 
 
 class DatasetPreprocessor:
@@ -13,7 +15,8 @@ class DatasetPreprocessor:
         """Initialize dataset preprocessor with paths from settings."""
         self.dataset_base = Path("datasets/yolo_dataset")
         self.splits = ["train", "valid", "test"]
-        self.image_extensions = [".jpg", ".jpeg", ".png", ".bmp"]
+        self.error_code_split = ["Objects", "Points"]
+        self.image_extensions = [".jpg", ".jpeg", ".png"]
         self.label_extension = ".txt"
 
         # Output directories for problematic data
@@ -27,8 +30,9 @@ class DatasetPreprocessor:
         self.stats = {
             "total_images": 0,
             "invalid_point_count": 0,
+            "invalid_points_removed": 0,
             "invalid_objects_count": 0,
-            "fixed_clockwise_labels": 0,
+            "invalid_objects_removed": 0,
             "duplicates_found": 0,
             "duplicates_removed": 0,
         }
@@ -71,25 +75,11 @@ class DatasetPreprocessor:
 
         return True, 0, parts
 
-    def save_obb_label(self, label_path, annotations):
-        """Save OBB annotations to label file."""
-        try:
-            with open(label_path, "w") as f:
-                for ann in annotations:
-                    # Format: class_id x1 y1 x2 y2 x3 y3 x4 y4
-                    line = " ".join(
-                        [str(ann[0])] + [f"{coord:.6f}" for coord in ann[1:]]
-                    )
-                    f.write(line + "\n")
-        except Exception as e:
-            print(f"Error writing label file {label_path}: {e}")
-
     def identify_invalid_point_counts(self):
         """Identify and move images with labels that don't have exactly 4 points."""
         print("\n=== Identifying Invalid Point Counts ===")
 
-        invalid_object_count = {}
-        invalid_point_count = {}
+        invalid_file_count = defaultdict(list)
 
         for split in self.splits:
             images_dir = self.dataset_base / split / "images"
@@ -106,34 +96,50 @@ class DatasetPreprocessor:
                 if is_valid:
                     continue
 
-                num_of_findings = len(findings) if isinstance(findings, list) else 0
-
                 if error_code == 1:
-                    invalid_object_count[str(Path(split) / label_path.name)] = (
-                        num_of_findings
+                    invalid_file_count["Objects"].append(
+                        {"path": image_file, "split": split}
                     )
+                    self.stats["invalid_objects_count"] += 1
                 elif error_code == 9:
-                    invalid_point_count[str(Path(split) / label_path.name)] = (
-                        num_of_findings
+                    invalid_file_count["Points"].append(
+                        {"path": image_file, "split": split}
+                    )
+                    self.stats["invalid_point_count"] += 1
+
+        if invalid_file_count:
+            # Create split directories in duplicates folder
+            for error_code in self.error_code_split:
+                for split in self.splits:
+                    split_dir = self.invalid_points_dir / error_code / split
+                    split_dir.mkdir(parents=True, exist_ok=True)
+                    (split_dir / "images").mkdir(parents=True, exist_ok=True)
+                    (split_dir / "labels").mkdir(parents=True, exist_ok=True)
+
+            removed_files = []
+
+            for type, files in invalid_file_count.items():
+                for file_info in files:
+                    src_img = file_info["path"]
+                    src_lbl = self.get_label_path(src_img)
+                    split = file_info["split"]
+
+                    # Move the file to the duplicates folder
+                    dst_img = (
+                        self.invalid_points_dir / type / split / "images" / src_img.name
+                    )
+                    dst_lbl = (
+                        self.invalid_points_dir / type / split / "labels" / src_lbl.name
                     )
 
-        summary_file = self.invalid_points_dir / "invalid_summary.json"
-        # Save invalid images for review
-        summary_data = {}
-        if invalid_object_count:
-            summary_data["invalid_object_count"] = invalid_object_count
-        if invalid_point_count:
-            summary_data["invalid_point_count"] = invalid_point_count
+                    # Move image file
+                    if src_img.exists():
+                        shutil.move(str(src_img), str(dst_img))
+                        removed_files.append(str(src_img))
 
-        if summary_data:  # Only write if there's data
-            with open(summary_file, "w") as f:
-                json.dump(summary_data, f, indent=2)
-
-            print(f"Found {len(invalid_object_count)} images with invalid object num")
-            print(f"Found {len(invalid_point_count)} images with invalid point num")
-            print(f"Summary saved to: {summary_file}")
-        else:
-            print("No images with invalid counts found")
+                    # Move label file if it exists
+                    if src_lbl.exists():
+                        shutil.move(str(src_lbl), str(dst_lbl))
 
     def extract_filename_prefix(self, filename):
         """Extract prefix from filename before any marker."""
@@ -170,9 +176,6 @@ class DatasetPreprocessor:
                 continue
 
             for image_file in images_dir.iterdir():
-                if image_file.suffix.lower() not in self.image_extensions:
-                    continue
-
                 prefix = self.extract_filename_prefix(image_file.name)
                 prefix_to_files[prefix].append(
                     {"path": image_file, "split": split, "prefix": prefix}
@@ -256,7 +259,7 @@ class DatasetPreprocessor:
         print(f"Total images processed: {self.stats['total_images']}")
         print(f"Images with invalid point counts: {self.stats['invalid_point_count']}")
         print(
-            f"Labels fixed for clockwise ordering: {self.stats['fixed_clockwise_labels']}"
+            f"Images with invalid object counts: {self.stats['invalid_objects_count']}"
         )
         print(f"Duplicate groups found: {self.stats['duplicates_found']}")
         print(f"Duplicate files removed: {self.stats['duplicates_removed']}")
@@ -276,17 +279,46 @@ class DatasetPreprocessor:
         print(f"\nDetailed summary saved to: {summary_file}")
         print(f"Review problematic files in: {self.output_base}")
 
+    # def even_split(self):
+    #     """Split dataset into even train/val/test as 75%/15%/10% sets."""
+    #     print("Splitting dataset into even train/val/test sets...")
+
+    #     train_images_dir = self.dataset_base / "train" / "images"
+    #     val_images_dir = self.dataset_base / "valid" / "images"
+    #     test_images_dir = self.dataset_base / "test" / "images"
+    #     images_for_test = []
+    #     images_for_val = []
+    #     test_images_passed = 0
+    #     val_images_passed = 0
+
+    #     for img in train_images_dir.iterdir():
+    #         if test_images_passed < 34:
+    #             images_for_test.append(img)
+    #             test_images_passed += 1
+    #         elif val_images_passed < 46:
+    #             images_for_val.append(img)
+    #             val_images_passed += 1
+
+    #     for img in images_for_test:
+    #         shutil.move(str(img), str(test_images_dir / img.name))
+    #         lbl = self.get_label_path(img)
+    #         if lbl.exists():
+    #             shutil.move(str(lbl), str(test_images_dir.parent / "labels" / lbl.name))
+
+    #     for img in images_for_val:
+    #         shutil.move(str(img), str(val_images_dir / img.name))
+    #         lbl = self.get_label_path(img)
+    #         if lbl.exists():
+    #             shutil.move(str(lbl), str(val_images_dir.parent / "labels" / lbl.name))
+
     def run_preprocessing(self):
         """Run complete preprocessing pipeline."""
         print("Starting dataset preprocessing...")
-
+        # self.even_split()
         self.setup_output_directories()
 
         # Step 1: Identify images with invalid point counts
         self.identify_invalid_point_counts()
-
-        # Step 2: Fix clockwise ordering (only on remaining valid files)
-        self.fix_clockwise_ordering()
 
         # Step 3: Remove duplicates
         self.find_and_remove_duplicates()

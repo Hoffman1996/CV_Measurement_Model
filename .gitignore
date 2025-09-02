@@ -41,7 +41,7 @@ test_predictions/
 datasets/
 charuco_images/
 s20plus_images_with_ChArUco/
-
+testing_images/
 # VSCode settings (optional)
 .vscode/
 

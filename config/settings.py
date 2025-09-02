@@ -9,8 +9,8 @@ MODEL_ARCHITECTURE = "yolo11s-obb.pt"
 MODEL_ARCHITECTURE_NAME = MODEL_ARCHITECTURE[:-3]
 DATA_YAML = "datasets/yolo_dataset/data.yaml"
 TRAINING_OUTPUT_DIR = "yolo_training_output"
-MODEL_NAME = f"{MODEL_ARCHITECTURE_NAME}_frame_detector"
-TRAINING_EPOCHS = 150
+MODEL_NAME = f"{MODEL_ARCHITECTURE_NAME}_frame_detector3"
+TRAINING_EPOCHS = 200
 TRAINING_BATCH_SIZE = 8
 
 # === YOLO TEST SETTINGS ===
@@ -19,7 +19,7 @@ TEST_LABELS_DIR = "datasets/yolo_dataset/test/labels"
 TEST_PREDICTIONS_OUTPUT_DIR = "test_predictions"
 VALID_IMAGES_DIR = "datasets/yolo_dataset/valid/images"
 VALID_LABELS_DIR = "datasets/yolo_dataset/valid/labels"
-CONFIDENCE_THRESHOLD = 0.8
+CONFIDENCE_THRESHOLD = 0.5
 IOU_THRESHOLD = 0.65
 
 

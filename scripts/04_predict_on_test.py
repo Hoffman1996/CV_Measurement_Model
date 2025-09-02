@@ -9,13 +9,13 @@ import scripts.utils as utils
 import matplotlib.pyplot as plt
 import config.settings as settings
 
-# test_dir = settings.unlabeled_images_dir
-test_dir = settings.TEST_IMAGES_DIR
+test_dir = settings.unlabeled_images_dir
+# test_dir = settings.TEST_IMAGES_DIR
 
 
 def get_test_images():
     """Get all test images from the test directory."""
-    image_extensions = ["*.jpg", "*.jpeg", "*.png", "*.bmp"]
+    image_extensions = ["*.jpg", "*.jpeg", "*.png"]
     test_images = []
 
     for ext in image_extensions:
