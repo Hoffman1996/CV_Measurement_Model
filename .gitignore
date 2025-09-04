@@ -30,25 +30,16 @@ desktop.ini
 # Model output / checkpoints
 runs/
 weights/
-output/
-checkpoints/
 yolo_training_output/
-visualization_output/
-letterbox_preview/
 test_predictions/
 
 # Datasets
 datasets/
 
-# VSCode settings (optional)
+# VSCode settings
 .vscode/
 
 # Folders
 archive/
-visualize_corners/
 preprocessing_output/
 measurement_results_*/
-
-# Files
-summary.md
-DECISION MAKING AND REASONING.md

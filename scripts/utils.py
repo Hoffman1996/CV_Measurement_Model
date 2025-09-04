@@ -1,4 +1,3 @@
-# scripts/utils.py
 from time import time
 import cv2
 import os
