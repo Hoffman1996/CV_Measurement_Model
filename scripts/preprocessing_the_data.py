@@ -274,42 +274,59 @@ class DatasetPreprocessor:
         print(f"Review problematic files in: {self.output_base}")
 
     def even_split(self):
-        """Split dataset into even train/val/test as 75%/15%/10% sets."""
+        """Split dataset into even train/val as 85%/15% sets."""
         print("Splitting dataset into even train/val/test sets...")
 
         train_images_dir = self.dataset_base / "train" / "images"
         val_images_dir = self.dataset_base / "valid" / "images"
         test_images_dir = self.dataset_base / "test" / "images"
-        images_for_test = []
+
+        images_for_train = []
         images_for_val = []
+
         train_images_dir_size = len(list(train_images_dir.iterdir()))
         val_images_dir_size = len(list(val_images_dir.iterdir()))
         test_images_dir_size = len(list(test_images_dir.iterdir()))
+        print(
+            f"Folders sizes before split - Train: {train_images_dir_size}, Val: {val_images_dir_size}, Test: {test_images_dir_size}"
+        )
         total_images = (
             train_images_dir_size + val_images_dir_size + test_images_dir_size
         )
-        desired_test_count = int(total_images * 0.10)
+        print(f"Total images before split: {total_images}")
+
+        desired_train_count = int(total_images * 0.85)
         desired_val_count = int(total_images * 0.15)
 
-        for img in train_images_dir.iterdir():
-            if test_images_dir_size < desired_test_count:
-                images_for_test.append(img)
-                test_images_dir_size += 1
+        for img in test_images_dir.iterdir():
+            if train_images_dir_size < desired_train_count:
+                images_for_train.append(img)
+                train_images_dir_size += 1
+
             elif val_images_dir_size < desired_val_count:
                 images_for_val.append(img)
                 val_images_dir_size += 1
 
-        for img in images_for_test:
-            shutil.move(str(img), str(test_images_dir / img.name))
+        for img in images_for_train:
+            shutil.move(str(img), str(train_images_dir / img.name))
             lbl = self.get_label_path(img)
             if lbl.exists():
-                shutil.move(str(lbl), str(test_images_dir.parent / "labels" / lbl.name))
+                shutil.move(
+                    str(lbl), str(train_images_dir.parent / "labels" / lbl.name)
+                )
 
         for img in images_for_val:
             shutil.move(str(img), str(val_images_dir / img.name))
             lbl = self.get_label_path(img)
             if lbl.exists():
                 shutil.move(str(lbl), str(val_images_dir.parent / "labels" / lbl.name))
+
+        train_images_dir_size = len(list(train_images_dir.iterdir()))
+        val_images_dir_size = len(list(val_images_dir.iterdir()))
+        test_images_dir_size = len(list(test_images_dir.iterdir()))
+        print(
+            f"Folders sizes after split - Train: {train_images_dir_size}, Val: {val_images_dir_size}, Test: {test_images_dir_size}"
+        )
 
     def run_preprocessing(self):
         """Run complete preprocessing pipeline."""
@@ -318,10 +335,10 @@ class DatasetPreprocessor:
         self.setup_output_directories()
 
         # Step 1: Identify images with invalid point counts
-        self.identify_invalid_point_counts()
+        # self.identify_invalid_point_counts()
 
         # Step 2: Remove duplicates
-        self.find_and_remove_duplicates()
+        # self.find_and_remove_duplicates()
 
         # Step 3: Correct the splits
         self.even_split()
