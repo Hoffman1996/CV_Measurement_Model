@@ -1,4 +1,3 @@
-# config/setting.py
 import cv2
 
 # === YOLO SETTINGS ===
@@ -7,7 +6,6 @@ YOLO_INPUT_SHAPE = (YOLO_INPUT_SIZE, YOLO_INPUT_SIZE)
 MODEL_ARCHITECTURE = "yolo11s-seg.pt"
 MODEL_ARCHITECTURE_NAME = MODEL_ARCHITECTURE[:-3]
 DATA_YAML_FOR_OBB = "datasets/yolo_dataset/data.yaml"
-DATA_YAML_FOR_YOLO = "datasets/converted_from_obb_to_yolo/yolo_dataset/data.yaml"
 MODEL_NAME = f"{MODEL_ARCHITECTURE_NAME}_frame_detector2"
 TRAINING_EPOCHS = 200
 TRAINING_BATCH_SIZE = 8
@@ -21,7 +19,7 @@ CHARUCOBOARD_ROWCOUNT = 5
 CHARUCOBOARD_COLCOUNT = 5
 SQUARE_LENGTH = 0.04  # 40 mm in meters
 MARKER_LENGTH = 0.03  # 30 mm in meters
-ARUCO_DICT_ID = cv2.aruco.DICT_6X6_250
+ARUCO_DICT_ID = cv2.aruco.DICT_6X6_250  # used locally
 ARUCO_DICT = cv2.aruco.getPredefinedDictionary(ARUCO_DICT_ID)
 
 # === REQUIREMENTS ===

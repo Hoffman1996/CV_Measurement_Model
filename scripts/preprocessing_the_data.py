@@ -1,11 +1,7 @@
-import os
 import shutil
 import json
 from pathlib import Path
 from collections import defaultdict
-import numpy as np
-import cv2
-import config.settings as settings
 
 
 class DatasetPreprocessor:
@@ -315,79 +311,6 @@ class DatasetPreprocessor:
             if lbl.exists():
                 shutil.move(str(lbl), str(val_images_dir.parent / "labels" / lbl.name))
 
-    def convert_label_from_obb_format_to_yolo_format(self, save_output_dir):
-        """Convert OBB labels to YOLO format and save to specified directory."""
-        print("\n=== Converting OBB Labels to YOLO Format ===")
-
-        # Convert to Path object if it's a string
-        save_output_dir = Path(save_output_dir)
-
-        data_yaml = self.dataset_base / "data.yaml"
-
-        for split in self.splits:
-            images_dir = self.dataset_base / split / "images"
-            labels_dir = self.dataset_base / split / "labels"
-
-            # Create output directories
-            output_labels_dir = save_output_dir / split / "labels"
-            output_images_dir = save_output_dir / split / "images"
-            output_labels_dir.mkdir(parents=True, exist_ok=True)
-            output_images_dir.mkdir(parents=True, exist_ok=True)
-
-            if not images_dir.exists() or not labels_dir.exists():
-                print(f"Skipping missing directory: {images_dir} or {labels_dir}")
-                continue
-
-            for image_file in images_dir.iterdir():
-                label_file = labels_dir / f"{image_file.stem}.txt"
-                if not label_file.exists():
-                    continue
-
-                try:
-                    # Copy the image file
-                    output_image_file = output_images_dir / image_file.name
-                    shutil.copy2(image_file, output_image_file)
-
-                    with open(label_file, "r") as f:
-                        lines = f.readlines()
-                        parts = lines[0].strip().split()
-                        class_id = parts[0]
-                        coords = list(map(float, parts[1:]))
-
-                        # Calculate bounding box (fix coordinate extraction)
-                        xs = coords[0::2]  # x coordinates: indices 0,2,4,6 from coords
-                        ys = coords[1::2]  # y coordinates: indices 1,3,5,7 from coords
-                        x_min, x_max = min(xs), max(xs)
-                        y_min, y_max = min(ys), max(ys)
-
-                        # Image dimensions
-                        img = cv2.imread(str(image_file))
-                        h, w = img.shape[:2]
-
-                        # Convert to YOLO format
-                        x_center = (x_min + x_max) / 2
-                        y_center = (y_min + y_max) / 2
-                        box_width = x_max - x_min
-                        box_height = y_max - y_min
-
-                        yolo_label = f"{class_id} {x_center:.10f} {y_center:.10f} {box_width:.10f} {box_height:.10f}\n"
-
-                    # Save YOLO label
-                    output_label_file = output_labels_dir / f"{image_file.stem}.txt"
-                    with open(output_label_file, "w") as out_f:
-                        out_f.write(yolo_label)
-
-                except Exception as e:
-                    print(f"Error processing file {label_file}: {e}")
-
-        # Copy data.yaml
-        try:
-            output_data_yaml = save_output_dir / "data.yaml"
-            shutil.copy2(data_yaml, output_data_yaml)
-            print(f"Copied data.yaml to: {output_data_yaml}")
-        except Exception as e:
-            print(f"Error copying data.yaml: {e}")
-
     def run_preprocessing(self):
         """Run complete preprocessing pipeline."""
         print("Starting dataset preprocessing...")
@@ -403,12 +326,7 @@ class DatasetPreprocessor:
         # Step 3: Correct the splits
         self.even_split()
 
-        # # step 4: Convert labels from OBB to YOLO format
-        # self.convert_label_from_obb_format_to_yolo_format(
-        #     Path(settings.CONVERTED_FROM_OBB_TO_YOLO_DIR)
-        # )
-
-        # Step 5: Generate summary report
+        # Step 4: Generate summary report
         self.generate_summary_report()
 
         print("\nPreprocessing complete!")

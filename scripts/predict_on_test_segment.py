@@ -1,9 +1,7 @@
 import os
 import cv2
-import time
 import random
 import numpy as np
-from scipy import stats
 from pathlib import Path
 import scripts.utils as utils
 import matplotlib.pyplot as plt

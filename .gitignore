@@ -47,6 +47,7 @@ datasets/
 archive/
 visualize_corners/
 preprocessing_output/
+measurement_results_*/
 
 # Files
 summary.md

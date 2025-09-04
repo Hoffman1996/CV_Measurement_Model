@@ -125,37 +125,6 @@ def validate_measurement_paths():
     return best_model_path
 
 
-def process_single_image(model, img_path, confidence_threshold, iou_threshold):
-    """Process a single image and return results."""
-    # Load image
-    image = cv2.imread(str(img_path))
-    if image is None:
-        print(f"Failed to load image: {img_path}")
-        return None, None, None
-
-    # Time the prediction
-    start_time = time()
-
-    # Make prediction
-    results = model.predict(
-        task="obb",
-        source=str(img_path),
-        imgsz=settings.YOLO_INPUT_SIZE,
-        rect=False,
-        conf=confidence_threshold,
-        iou=iou_threshold,
-        save=False,
-        verbose=False,
-        max_det=1,
-        agnostic_nms=True,  # Force to choose only class 'frame'
-    )
-
-    inference_time = time() - start_time
-    result = results[0]
-
-    return result, inference_time, image
-
-
 def process_single_image_segment(model, img_path, confidence_threshold, iou_threshold):
     """Process a single image and return results for segmentation."""
     # Load image
@@ -211,7 +180,7 @@ def process_single_image_with_mask_extraction(
         iou=iou_threshold,
         save=False,
         verbose=False,
-        max_det=3,
+        max_det=1,
         agnostic_nms=True,
         retina_masks=True,
     )
