@@ -4,10 +4,12 @@
         This evoids errors of unaccessable datasets folders during training and testing
 
 # **ModuleNotFoundError**
+
 ####    Before trying anything else:
         Make sure that each of the packages in the root folder has an __init__.py file
         if not → create one for each of the packages and leave it empty
         this makes python know that this is a package and that its files can be imported elswhere
+
 ###  **Method 1 (Prefferable):**
 ###    Settings App (Windows 10/11)
         Settings → System → About
@@ -18,9 +20,11 @@
             If it doesn't exist: Click New
         Variable name: PYTHONPATH
         Variable value: C:\path\to\your\project (your project's root folder path)
+
 ###  **Method 2:**
 ###     Set PYTHONPATH to your project folder for the current PowerShell session only:
-         $env:PYTHONPATH = "C:\path\to\your\project"
+         $env:PYTHONPATH = "$PWD" (PWD id Path to Working Directory which is -> "C:\path\to\your\project")
+         
 ###  **Method 3:**
 ###     Add project root to path programmatically
     At the top of your main scripts:

@@ -1,16 +1,17 @@
-import datetime
 import json
 import cv2
 import numpy as np
 import os
 from pathlib import Path
-from ultralytics import YOLO
 import config.settings as settings
 import scripts.utils as utils
-import sys
+
+# from ultralytics import YOLO
 
 
 class WindowMeasurementSystem:
+    """Window measurement system using ChArUco markers for OBB models."""
+
     def __init__(self):
         """Initialize the window measurement system."""
         # Use settings for ChArUco board specifications
@@ -27,7 +28,10 @@ class WindowMeasurementSystem:
 
         # Load YOLO model using existing utils function
         # We pass a dummy test dir since we don't need validation for measurement
-        self.yolo_model, self.model_path = utils.load_model_and_validate_paths(".")
+        self.detection_dataset_dir = settings.NIGHT_TIME_IMAGES_DIR_PATH
+        self.yolo_model, self.model_path = utils.load_model_and_validate_paths(
+            self.detection_dataset_dir
+        )
 
         # Measurement accuracy target
         self.target_accuracy_mm = 10
@@ -63,9 +67,9 @@ class WindowMeasurementSystem:
                     p1 = id_to_corner[id1]
                     p2 = id_to_corner[id2]
                     pixel_dist = np.linalg.norm(p1 - p2)
-                    print(
-                        f"Pixel distance between {id1} and {id2}: {pixel_dist:.2f} pixels"
-                    )
+                    # print(
+                    #     f"Pixel distance between {id1} and {id2}: {pixel_dist:.2f} pixels"
+                    # )
                     pixel_distances.append(pixel_dist)
 
         if len(pixel_distances) == 0:
@@ -85,7 +89,7 @@ class WindowMeasurementSystem:
             - inference_time: Time taken for prediction
         """
         # Use existing utils function but adjust max_det for measurement context
-        result, inference_time, image = utils.process_single_image(
+        result, inference_time, image = utils.process_single_image_segment(
             self.yolo_model,
             image_path,
             settings.CONFIDENCE_THRESHOLD,
@@ -97,16 +101,29 @@ class WindowMeasurementSystem:
 
         detections = []
 
-        if len(result.obb) > 0:
-            for i, box in enumerate(result.obb):
-                confidence = float(box.conf[0])
-                obb_coords = box.xyxyxyxy[0].cpu().numpy()
+        if result.boxes is not None and len(result.boxes) > 0:
+            boxes = result.boxes
+            masks = result.masks
+
+            for i in range(len(boxes)):
+                confidence = float(boxes.conf[i])
+
+                # Get bounding box coordinates (x1, y1, x2, y2)
+                bbox = boxes.xyxy[i].cpu().numpy()
+
+                # Convert bbox to 4 corner points for compatibility with existing code
+                x1, y1, x2, y2 = bbox
+                obb_coords = np.array(
+                    [[x1, y1], [x2, y1], [x2, y2], [x1, y2]]
+                ).flatten()  # Make it flat like OBB format
 
                 detection = {
                     "id": i + 1,
                     "confidence": confidence,
                     "coordinates": obb_coords,
-                    "bbox_type": "obb",
+                    "bbox_type": "bbox_converted_to_obb",
+                    "has_mask": masks is not None and i < len(masks.data),
+                    "mask_available": masks is not None,
                 }
                 detections.append(detection)
 
@@ -133,13 +150,16 @@ class WindowMeasurementSystem:
             p2 = points[(i + 1) % 4]  # Next point (wrapping around)
             edge_length = np.linalg.norm(p2 - p1)
             edge_lengths_pixels.append(edge_length)
-
+            print(
+                f"Edge length {i}: point {i}: {p1}, point {(i+1)%4}: {p2}, length: {edge_length}"
+            )
         # Assuming rectangular window, opposite sides should be similar
         # Group into width and height
         # edge_lengths_pixels.sort()
-        height_pixels = np.mean([edge_lengths_pixels[0], edge_lengths_pixels[2]])
-        width_pixels = np.mean([edge_lengths_pixels[1], edge_lengths_pixels[3]])
-
+        # height_pixels = np.mean([edge_lengths_pixels[0], edge_lengths_pixels[2]])
+        # width_pixels = np.mean([edge_lengths_pixels[1], edge_lengths_pixels[3]])
+        width_pixels = np.mean([edge_lengths_pixels[0], edge_lengths_pixels[2]])
+        height_pixels = np.mean([edge_lengths_pixels[1], edge_lengths_pixels[3]])
         # Convert to millimeters
         height_mm = height_pixels / pixels_per_mm
         width_mm = width_pixels / pixels_per_mm
@@ -163,7 +183,7 @@ class WindowMeasurementSystem:
             raise ValueError(f"Could not load image: {image_path}")
 
         print(f"Processing image: {Path(image_path).name}")
-        print(f"Image dimensions: {image.shape[1]}x{image.shape[0]} pixels")
+        print(f"Image dimensions: {image.shape[1]}x{image.shape[0]} pixels")  # W,H
 
         # Detect ChArUco board using existing utils function
         # Create visualization directory if it doesn't exist
@@ -265,7 +285,7 @@ class WindowMeasurementSystem:
             coords = np.array(window["coordinates"]).reshape(4, 2).astype(int)
 
             # Draw OBB
-            cv2.polylines(annotated_image, [coords], True, (0, 255, 0), 2)
+            cv2.polylines(annotated_image, [coords], True, (0, 255, 0), 5)
 
             # Add text with measurements
             center = coords.mean(axis=0).astype(int)
@@ -306,8 +326,11 @@ def measure_window_from_image(image_path, output_dir=None):
 
 if __name__ == "__main__":
 
-    output_dir = "measurement_results"
-    images_paths = Path(settings.IMAGES_WITH_CHARUCO_DIR).glob("*.*")
+    print("\n\n", "=" * 40, "\n\n")
+    print(" === STARTING NEW WINDOW ===")
+
+    output_dir = "measurement_results_night_time_images"
+    images_paths = Path(settings.NIGHT_TIME_IMAGES_DIR_PATH).glob("*.*")
 
     # Create results file
     results_file = Path(output_dir) / f"measurement_results_it_is_me_MARIO!.json"
@@ -319,20 +342,20 @@ if __name__ == "__main__":
             results = measure_window_from_image(image_path, output_dir)
             all_results.append(results)
 
-            # if results["success"]:
-            #     print(f"\n=== MEASUREMENT RESULTS ===")
-            #     print(f"Image: {results['image_path']}")
-            #     print(f"Calibration: {results['pixels_per_mm']:.3f} pixels/mm")
-            #     print(f"Windows detected: {len(results['windows'])}")
+            if results["success"]:
+                print(f"\n=== MEASUREMENT RESULTS ===")
+                print(f"Image: {results['image_path']}")
+                print(f"Calibration: {results['pixels_per_mm']:.3f} pixels/mm")
+                print(f"Windows detected: {len(results['windows'])}")
 
-            #     for window in results["windows"]:
-            #         print(f"\nWindow {window['id']}:")
-            #         print(
-            #             f"  Dimensions: {window['width_mm']:.1f} x {window['height_mm']:.1f} mm"
-            #         )
-            #         print(f"  Confidence: {window['confidence']:.3f}")
-            # else:
-            #     print(f"Measurement failed: {results.get('error', 'Unknown error')}")
+                for window in results["windows"]:
+                    print(f"\nWindow {window['id']}:")
+                    print(
+                        f"  Dimensions: {window['width_mm']:.1f} x {window['height_mm']:.1f} mm"
+                    )
+                    print(f"  Confidence: {window['confidence']:.3f}")
+            else:
+                print(f"Measurement failed: {results.get('error', 'Unknown error')}")
 
         except Exception as e:
             print(f"Error processing image: {e}")

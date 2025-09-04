@@ -39,9 +39,6 @@ test_predictions/
 
 # Datasets
 datasets/
-charuco_images/
-s20plus_images_with_ChArUco/
-testing_images/
 
 # VSCode settings (optional)
 .vscode/
@@ -49,6 +46,7 @@ testing_images/
 # Folders
 archive/
 visualize_corners/
+preprocessing_output/
 
 # Files
 summary.md

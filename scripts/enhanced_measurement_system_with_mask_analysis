@@ -1,0 +1,507 @@
+import json
+import cv2
+import os
+import numpy as np
+from scipy.spatial.distance import pdist
+from scipy.spatial import ConvexHull
+import scripts.utils as utils
+import scripts.window_measurement_with_charuco_detection as wm
+import config.settings as settings
+from pathlib import Path
+
+
+class EnhancedWindowMeasurementSystem(wm.WindowMeasurementSystem):
+    """Window measurement system using ChArUco markers for SEG models."""
+
+    def detect_windows_with_masks(self, image_path):
+        """
+        Detect windows using segmentation masks for more precise measurements.
+
+        Returns:
+            - detections: List of window detections with mask information
+            - inference_time: Time taken for prediction
+        """
+        # Use the mask extraction function
+        result, inference_time, image, masks, mask_info = (
+            utils.process_single_image_with_mask_extraction(
+                self.yolo_model,
+                image_path,
+                settings.CONFIDENCE_THRESHOLD,
+                settings.IOU_THRESHOLD,
+            )
+        )
+
+        if result is None:
+            return [], 0
+
+        detections = []
+
+        if result.boxes is not None and len(result.boxes) > 0:
+            boxes = result.boxes
+
+            for i in range(len(boxes)):
+                confidence = float(boxes.conf[i])
+
+                # Get mask data
+                if masks is not None and i < len(masks):
+                    mask = masks[i]
+
+                    # Extract precise contour from mask
+                    contour_coords = self.extract_mask_contour(mask, image.shape[:2])
+
+                    # Calculate oriented bounding box from mask
+                    obb_coords = self.calculate_oriented_bbox_from_mask(
+                        mask, image.shape[:2]
+                    )
+
+                    detection = {
+                        "id": i + 1,
+                        "confidence": confidence,
+                        "coordinates": obb_coords,  # Oriented bounding box
+                        "mask_contour": contour_coords,  # Precise contour
+                        "mask_area": (
+                            mask_info["areas"][i] if i < len(mask_info["areas"]) else 0
+                        ),
+                        "mask_centroid": (
+                            mask_info["centroids"][i]
+                            if i < len(mask_info["centroids"])
+                            else (0, 0)
+                        ),
+                        "bbox_type": "mask_derived_obb",
+                    }
+                    detections.append(detection)
+
+        print(f"Detected {len(detections)} windows with masks in {inference_time:.3f}s")
+        return detections, inference_time
+
+    def extract_mask_contour(self, mask, original_shape):
+        """
+        Extract precise contour coordinates from segmentation mask.
+
+        Args:
+            mask: Segmentation mask (numpy array)
+            original_shape: (height, width) of original image
+
+        Returns:
+            contour_coords: List of (x, y) coordinates defining the mask boundary
+        """
+        # Resize mask to original image size
+        mask_resized = cv2.resize(mask, (original_shape[1], original_shape[0]))
+
+        # Convert to binary mask
+        binary_mask = (mask_resized > 0.5).astype(np.uint8)
+
+        # Find contours
+        contours, _ = cv2.findContours(
+            binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        if not contours:
+            return []
+
+        # Get the largest contour (main frame boundary)
+        largest_contour = max(contours, key=cv2.contourArea)
+
+        # Simplify contour to reduce noise
+        epsilon = 0.002 * cv2.arcLength(largest_contour, True)
+        simplified_contour = cv2.approxPolyDP(largest_contour, epsilon, True)
+
+        # Convert to list of (x, y) coordinates
+        contour_coords = simplified_contour.reshape(-1, 2).tolist()
+
+        return contour_coords
+
+    def calculate_oriented_bbox_from_mask(self, mask, original_shape):
+        """
+        Calculate oriented bounding box from mask for more accurate rectangular measurements.
+
+        Args:
+            mask: Segmentation mask
+            original_shape: (height, width) of original image
+
+        Returns:
+            obb_coords: 4 corner coordinates of oriented bounding box
+        """
+        # Resize mask to original image size
+        mask_resized = cv2.resize(mask, (original_shape[1], original_shape[0]))
+        binary_mask = (mask_resized > 0.5).astype(np.uint8)
+
+        # Find contours
+        contours, _ = cv2.findContours(
+            binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        if not contours:
+            return np.array([[0, 0], [0, 0], [0, 0], [0, 0]]).flatten()
+
+        # Get the largest contour
+        largest_contour = max(contours, key=cv2.contourArea)
+
+        # Calculate minimum area rectangle (oriented bounding box)
+        rect = cv2.minAreaRect(largest_contour)
+        box_points = cv2.boxPoints(rect)
+
+        # Sort points in consistent order (clockwise from top-left)
+        box_points = self.sort_box_points(box_points)
+
+        return box_points.flatten()
+
+    def sort_box_points(self, points):
+        """Sort box points in clockwise order starting from top-left."""
+        # Calculate centroid
+        cx = np.mean(points[:, 0])
+        cy = np.mean(points[:, 1])
+
+        # Sort by angle from centroid
+        def angle_from_center(point):
+            return np.arctan2(point[1] - cy, point[0] - cx)
+
+        # Sort points by angle
+        sorted_points = sorted(points, key=angle_from_center)
+
+        # Find top-left point (minimum x+y)
+        top_left_idx = np.argmin([p[0] + p[1] for p in sorted_points])
+
+        # Reorder starting from top-left, going clockwise
+        reordered = sorted_points[top_left_idx:] + sorted_points[:top_left_idx]
+
+        return np.array(reordered)
+
+    def calculate_mask_based_dimensions(self, detection, pixels_per_mm):
+        """
+        Calculate dimensions using mask contour for maximum accuracy.
+
+        Args:
+            detection: Detection dictionary with mask information
+            pixels_per_mm: Calibration ratio
+
+        Returns:
+            width_mm, height_mm: Dimensions in millimeters
+            measurement_confidence: Quality metric (0-1)
+        """
+        # Method 1: Use oriented bounding box (most reliable for rectangular objects)
+        obb_width_mm, obb_height_mm = self.calculate_window_dimensions(
+            detection, pixels_per_mm
+        )
+
+        # Method 2: Use actual mask contour for validation
+        contour_width_mm, contour_height_mm, contour_confidence = (
+            self.calculate_contour_dimensions(detection, pixels_per_mm)
+        )
+
+        # Method 3: Use mask area for additional validation
+        area_based_confidence = self.validate_dimensions_with_area(
+            detection, obb_width_mm, obb_height_mm, pixels_per_mm
+        )
+
+        # Combine measurements with confidence weighting
+        if contour_confidence > 0.7:  # High confidence in contour measurement
+            final_width = (obb_width_mm + contour_width_mm) / 2
+            final_height = (obb_height_mm + contour_height_mm) / 2
+            measurement_confidence = min(contour_confidence, area_based_confidence)
+        else:  # Fall back to OBB measurement
+            final_width = obb_width_mm
+            final_height = obb_height_mm
+            measurement_confidence = area_based_confidence
+
+        return final_width, final_height, measurement_confidence
+
+    def calculate_contour_dimensions(self, detection, pixels_per_mm):
+        """Calculate dimensions from mask contour."""
+        contour_coords = detection.get("mask_contour", [])
+
+        if len(contour_coords) < 4:
+            return 0, 0, 0
+
+        points = np.array(contour_coords)
+
+        # Calculate convex hull for more stable measurement
+        try:
+            hull = ConvexHull(points)
+            hull_points = points[hull.vertices]
+        except:
+            hull_points = points
+
+        # Find the two longest perpendicular distances
+        distances = pdist(hull_points)
+        max_distance_idx = np.argmax(distances)
+
+        # Convert distance index back to point indices
+        n = len(hull_points)
+        i, j = (
+            np.triu_indices(n, 1)[0][max_distance_idx],
+            np.triu_indices(n, 1)[1][max_distance_idx],
+        )
+
+        # Find the longest edge (likely width or height)
+        longest_edge_pixels = distances[max_distance_idx]
+
+        # Find perpendicular distance (approximate the other dimension)
+        # This is a simplified approach - for better accuracy, you'd need more complex geometry
+        other_distances = distances[distances != longest_edge_pixels]
+        if len(other_distances) > 0:
+            perpendicular_edge_pixels = np.median(
+                other_distances
+            )  # Use median as approximation
+        else:
+            perpendicular_edge_pixels = longest_edge_pixels * 0.6  # Assume aspect ratio
+
+        # Convert to millimeters
+        dim1_mm = longest_edge_pixels / pixels_per_mm
+        dim2_mm = perpendicular_edge_pixels / pixels_per_mm
+
+        # Assign to width/height based on which is larger
+        width_mm = max(dim1_mm, dim2_mm)
+        height_mm = min(dim1_mm, dim2_mm)
+
+        # Calculate confidence based on contour quality
+        contour_confidence = min(
+            1.0, len(contour_coords) / 20.0
+        )  # More points = higher confidence
+
+        return width_mm, height_mm, contour_confidence
+
+    def validate_dimensions_with_area(
+        self, detection, width_mm, height_mm, pixels_per_mm
+    ):
+        """Validate dimensions using mask area."""
+        mask_area_pixels = detection.get("mask_area", 0)
+
+        if mask_area_pixels == 0:
+            return 0.5  # Neutral confidence
+
+        # Calculate expected area from dimensions
+        expected_area_pixels = (width_mm * pixels_per_mm) * (height_mm * pixels_per_mm)
+
+        # Calculate area ratio (should be close to 1.0 for rectangular objects)
+        if expected_area_pixels > 0:
+            area_ratio = mask_area_pixels / expected_area_pixels
+
+            # Confidence decreases as ratio deviates from 1.0
+            # For rectangular frames, we expect ratio around 0.7-1.0 (accounting for frame thickness)
+            if 0.5 <= area_ratio <= 1.2:
+                confidence = 1.0 - abs(area_ratio - 0.85) / 0.35  # Peak at 0.85 ratio
+            else:
+                confidence = 0.3  # Low confidence for unexpected ratios
+        else:
+            confidence = 0.1
+
+        return max(0.1, min(1.0, confidence))
+
+    def process_image_with_masks(self, image_path, output_dir=None):
+        """
+        Enhanced image processing using mask information.
+
+        This replaces the original process_image method with mask-based analysis.
+        """
+        # Load image
+        image = cv2.imread(str(image_path))
+        if image is None:
+            raise ValueError(f"Could not load image: {image_path}")
+
+        print(f"Processing image with mask analysis: {Path(image_path).name}")
+        print(f"Image dimensions: {image.shape[1]}x{image.shape[0]} pixels")
+
+        # Detect ChArUco board (same as before)
+        vis_dir = os.path.join(output_dir or "temp_measurement", "charuco_detection")
+        os.makedirs(vis_dir, exist_ok=True)
+
+        marker_ids, charuco_corners, charuco_ids = utils.detect_charuco_board(
+            image,
+            settings.ARUCO_DICT,
+            self.charuco_board,
+            self.detector_params,
+            vis_dir,
+            image_path,
+        )
+
+        charuco_success = (
+            marker_ids is not None
+            and charuco_corners is not None
+            and charuco_ids is not None
+        )
+
+        if not charuco_success:
+            return {
+                "success": False,
+                "error": "Failed to detect ChArUco board",
+                "image_path": str(image_path),
+            }
+
+        # Calculate pixel-to-mm ratio
+        pixels_per_mm, calibration_success = self.calculate_pixel_to_mm_ratio(
+            charuco_corners, charuco_ids
+        )
+
+        if not calibration_success:
+            return {
+                "success": False,
+                "error": "Failed to calculate pixel-to-mm ratio",
+                "image_path": str(image_path),
+            }
+
+        # Detect windows with masks
+        window_detections, inference_time = self.detect_windows_with_masks(image_path)
+
+        if not window_detections:
+            return {
+                "success": True,
+                "warning": "No windows detected",
+                "pixels_per_mm": pixels_per_mm,
+                "windows": [],
+                "image_path": str(image_path),
+            }
+
+        # Calculate dimensions using mask information
+        results = {
+            "success": True,
+            "image_path": str(image_path),
+            "pixels_per_mm": pixels_per_mm,
+            "calibration_accuracy_target_mm": self.target_accuracy_mm,
+            "inference_time_seconds": inference_time,
+            "measurement_method": "mask_based",
+            "windows": [],
+        }
+
+        for detection in window_detections:
+            width_mm, height_mm, measurement_confidence = (
+                self.calculate_mask_based_dimensions(detection, pixels_per_mm)
+            )
+
+            window_result = {
+                "id": detection["id"],
+                "confidence": detection["confidence"],
+                "measurement_confidence": measurement_confidence,
+                "width_mm": width_mm,
+                "height_mm": height_mm,
+                "mask_area_pixels": detection["mask_area"],
+                "mask_centroid": detection["mask_centroid"],
+                "coordinates": detection["coordinates"].tolist(),
+                "measurement_method": "mask_based_obb",
+            }
+
+            results["windows"].append(window_result)
+
+            print(f"Window {detection['id']}:")
+            print(f"  Detection Confidence: {detection['confidence']:.3f}")
+            print(f"  Measurement Confidence: {measurement_confidence:.3f}")
+            print(f"  Width: {width_mm:.1f} mm")
+            print(f"  Height: {height_mm:.1f} mm")
+            print(f"  Mask Area: {detection['mask_area']} pixels")
+
+        # Save annotated image with mask overlays
+        if output_dir:
+            self.save_annotated_image_with_masks(
+                image, results, window_detections, output_dir
+            )
+
+        return results
+
+    def save_annotated_image_with_masks(self, image, results, detections, output_dir):
+        """Save image with mask overlays and measurements."""
+        os.makedirs(output_dir, exist_ok=True)
+
+        annotated_image = image.copy()
+
+        # Draw mask contours and measurements
+        for i, (window, detection) in enumerate(zip(results["windows"], detections)):
+            # Draw mask contour
+            contour_coords = detection.get("mask_contour", [])
+            if contour_coords:
+                contour_np = np.array(contour_coords, dtype=np.int32)
+                cv2.polylines(
+                    annotated_image, [contour_np], True, (255, 0, 0), 5
+                )  # Blue contour
+
+            # Draw oriented bounding box
+            coords = np.array(window["coordinates"]).reshape(4, 2).astype(int)
+            cv2.polylines(annotated_image, [coords], True, (0, 255, 0), 3)  # Green OBB
+
+            # Add measurements and confidence
+            center = coords.mean(axis=0).astype(int)
+            text1 = f"W:{window['width_mm']:.0f}mm H:{window['height_mm']:.0f}mm"
+            text2 = f"Conf:{window['measurement_confidence']:.2f}"
+
+            cv2.putText(
+                annotated_image,
+                text1,
+                (center[0] - 60, center[1] - 10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (0, 255, 0),
+                2,
+            )
+            cv2.putText(
+                annotated_image,
+                text2,
+                (center[0] - 40, center[1] + 10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.4,
+                (0, 255, 0),
+                1,
+            )
+
+        # Save annotated image
+        filename = f"mask_measured_{Path(results['image_path']).name}"
+        output_path = os.path.join(output_dir, filename)
+        cv2.imwrite(output_path, annotated_image)
+
+        print(f"Mask-annotated image saved: {output_path}")
+
+
+# Usage function
+def measure_window_with_masks(image_path, output_dir=None):
+    """
+    Convenience function to measure windows using mask-based analysis.
+    """
+    system = EnhancedWindowMeasurementSystem()
+    return system.process_image_with_masks(image_path, output_dir)
+
+
+if __name__ == "__main__":
+    print("\n\n", "=" * 40, "\n\n")
+    print(" === STARTING NEW WINDOW ===")
+    output_dir = "measurement_results_night_time_images"
+    images_paths = Path(settings.NIGHT_TIME_IMAGES_DIR_PATH).glob("*.*")
+
+    # Create results file
+    results_file = Path(output_dir) / f"mask_measurement_results_it_is_me_MARIO!.json"
+    all_results = []
+
+    for image_path in images_paths:
+        try:
+            # Use the enhanced mask-based measurement
+            results = measure_window_with_masks(image_path, output_dir)
+            all_results.append(results)
+
+            if results["success"]:
+                print(f"\n=== MASK-BASED MEASUREMENT RESULTS ===")
+                print(f"Image: {results['image_path']}")
+                print(f"Calibration: {results['pixels_per_mm']:.3f} pixels/mm")
+                print(f"Windows detected: {len(results['windows'])}")
+
+                for window in results["windows"]:
+                    print(f"\nWindow {window['id']}:")
+                    print(
+                        f"  Dimensions: {window['width_mm']:.1f} x {window['height_mm']:.1f} mm"
+                    )
+                    print(f"  Detection Confidence: {window['confidence']:.3f}")
+                    print(
+                        f"  Measurement Confidence: {window['measurement_confidence']:.3f}"
+                    )
+                    print(f"  Mask Area: {window['mask_area_pixels']} pixels")
+            else:
+                print(f"Measurement failed: {results.get('error', 'Unknown error')}")
+
+        except Exception as e:
+            print(f"Error processing image: {e}")
+            all_results.append(
+                {"success": False, "error": str(e), "image_path": str(image_path)}
+            )
+
+    # Write results to file
+    os.makedirs(output_dir, exist_ok=True)
+    with open(results_file, "w") as f:
+        json.dump(utils.convert_numpy_types(all_results), f, indent=2)
+
+    print(f"\nResults saved to: {results_file}")

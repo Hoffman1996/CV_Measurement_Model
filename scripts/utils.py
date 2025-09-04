@@ -146,7 +146,7 @@ def process_single_image(model, img_path, confidence_threshold, iou_threshold):
         iou=iou_threshold,
         save=False,
         verbose=False,
-        max_det=1,  # limit to 3 detections per image
+        max_det=1,
         agnostic_nms=True,  # Force to choose only class 'frame'
     )
 
@@ -154,6 +154,100 @@ def process_single_image(model, img_path, confidence_threshold, iou_threshold):
     result = results[0]
 
     return result, inference_time, image
+
+
+def process_single_image_segment(model, img_path, confidence_threshold, iou_threshold):
+    """Process a single image and return results for segmentation."""
+    # Load image
+    image = cv2.imread(str(img_path))  # H,W
+    if image is None:
+        print(f"Failed to load image: {img_path}")
+        return None, None, None
+
+    # Time the prediction
+    start_time = time()
+
+    # Make prediction for segmentation
+    results = model.predict(
+        task="segment",  # Changed from "obb" to "segment"
+        source=str(img_path),
+        imgsz=settings.YOLO_INPUT_SIZE,
+        rect=False,
+        conf=confidence_threshold,
+        iou=iou_threshold,
+        save=False,
+        verbose=False,
+        max_det=1,
+        agnostic_nms=True,  # Force to choose only class 'frame'
+        retina_masks=True,  # High resolution masks
+    )
+
+    inference_time = time() - start_time
+    result = results[0]
+
+    return result, inference_time, image
+
+
+def process_single_image_with_mask_extraction(
+    model, img_path, confidence_threshold, iou_threshold
+):
+    """Process a single image and extract detailed mask information."""
+    # Load image
+    image = cv2.imread(str(img_path))
+    if image is None:
+        print(f"Failed to load image: {img_path}")
+        return None, None, None, None, None
+
+    # Time the prediction
+    start_time = time()
+
+    # Make prediction for segmentation
+    results = model.predict(
+        task="segment",
+        source=str(img_path),
+        imgsz=settings.YOLO_INPUT_SIZE,
+        rect=False,
+        conf=confidence_threshold,
+        iou=iou_threshold,
+        save=False,
+        verbose=False,
+        max_det=3,
+        agnostic_nms=True,
+        retina_masks=True,
+    )
+
+    inference_time = time() - start_time
+    result = results[0]
+
+    # Extract masks and additional information
+    masks = None
+    mask_areas = []
+    mask_centroids = []
+
+    if result.masks is not None:
+        masks = result.masks.data.cpu().numpy()  # Get mask data
+
+        for mask in masks:
+            # Calculate mask area
+            area = np.sum(mask > 0.5)
+            mask_areas.append(area)
+
+            # Calculate centroid
+            y_coords, x_coords = np.where(mask > 0.5)
+            if len(x_coords) > 0 and len(y_coords) > 0:
+                centroid_x = np.mean(x_coords)
+                centroid_y = np.mean(y_coords)
+                mask_centroids.append((centroid_x, centroid_y))
+            else:
+                mask_centroids.append((0, 0))
+
+    return (
+        result,
+        inference_time,
+        image,
+        masks,
+        {"areas": mask_areas, "centroids": mask_centroids},
+    )
 
 
 def convert_numpy_types(obj):
@@ -169,40 +263,3 @@ def convert_numpy_types(obj):
     elif isinstance(obj, list):
         return [convert_numpy_types(item) for item in obj]
     return obj
-
-
-################################################################
-
-
-def letterbox_yolo_style(
-    img, new_shape=settings.YOLO_INPUT_SHAPE, color=settings.LETTERBOX_COLOR
-):
-    """Apply YOLO letterboxing exactly as used in calibration"""
-
-    shape = img.shape[:2]  # current shape [height, width]
-
-    if isinstance(new_shape, int):
-        new_shape = (new_shape, new_shape)
-
-    # Scale ratio (new / old)
-    scale_ratio = min(new_shape[0] / shape[0], new_shape[1] / shape[1])
-
-    # Compute new dimensions
-    new_unpad = int(round(shape[1] * scale_ratio)), int(round(shape[0] * scale_ratio))
-
-    # Resize image
-    img_resized = cv2.resize(img, new_unpad, interpolation=cv2.INTER_LINEAR)
-
-    # Compute padding
-    dw = new_shape[1] - new_unpad[0]
-    dh = new_shape[0] - new_unpad[1]
-
-    # Divide padding into 2 sides
-    top, bottom = dh // 2, dh - dh // 2
-    left, right = dw // 2, dw - dw // 2
-
-    img_letterboxed = cv2.copyMakeBorder(
-        img_resized, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color
-    )
-
-    return img_letterboxed, scale_ratio, (left, top)
