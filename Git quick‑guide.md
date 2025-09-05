@@ -26,7 +26,7 @@ git pull origin main
 
 ---
 
-2) Add or replace files/folders
+2) Add or replace or update files/folders
 Replacing is the same as adding: overwrite the file(s), then stage and commit.
 
 ## add specific files
@@ -34,6 +34,9 @@ git add path\to\file1.ext path\to\file2.ext
 
 ## add everything new/changed in the current folder
 git add .
+
+## update files without new/untracked files/folders
+git commit -am "Update this and that bla bla bla"
 
 ## commit with a message (skip the editor)
 git commit -m "Add new dataset split and update training script"
