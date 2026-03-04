@@ -9,9 +9,9 @@ An end-to-end Computer Vision system that **automatically measures window frame 
 
 ## Demo
 
-| Input Image                                                   | ChArUco Calibration Detected                                           | Measurement Output                                              |
-| ------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------- |
-| ![Original](datasets\testing_images\night_time\IMG_4981.jpeg) | ![ChArUco](archive\charuco_images\calibration_set\20250804_143215.jpg) | ![Measured](measurement_results\optimal_measured_IMG_4981.jpeg) |
+| Input Image                                   | ChArUco Calibration Detected                         | Measurement Output                          |
+| --------------------------------------------- | ---------------------------------------------------- | ------------------------------------------- |
+| ![Original](assets\Input Image_IMG_4981.jpeg) | ![ChArUco](assets\ChArUco Calibration Detected.jpeg) | ![Measured](assets\Measurement Output.jpeg) |
 
 The blue contour marks the detected window frame. Measurements are overlaid in real-time with confidence scores.
 
