@@ -1,0 +1,506 @@
+[
+  {
+    "success": true,
+    "image_path": "datasets\\testing_images\\super_tester\\20250902_233530.jpg",
+    "pixels_per_mm": 1.8469502925872803,
+    "measurement_method": "optimal_multi_method_analysis",
+    "windows": [
+      {
+        "id": 1,
+        "detection_confidence": 0.9645869135856628,
+        "width_mm": 987.5739135742188,
+        "height_mm": 695.2000122070312,
+        "confidence": 0.8964754845766518,
+        "valid_methods": 2,
+        "method_details": [
+          {
+            "method": "min_area_rect",
+            "width_mm": 987.5737915039062,
+            "height_mm": 695.199951171875,
+            "confidence": 1.0,
+            "weight": 0.7
+          },
+          {
+            "method": "contour_analysis",
+            "width_mm": 987.573974609375,
+            "height_mm": 695.2000732421875,
+            "confidence": 0.9664141918757173,
+            "weight": 0.28992425756271517
+          }
+        ],
+        "measurement_method": "weighted_multi_method",
+        "quality_metrics": {
+          "mask_area": 2268296,
+          "mask_perimeter": 6429.997035264969,
+          "rectangularity": 0.6894266157248194,
+          "width_consistency": 0.9999999330754821,
+          "height_consistency": 0.9999999049296541,
+          "overall_quality": 0.8964754845766518,
+          "measurement_methods_count": 2
+        }
+      }
+    ]
+  },
+  {
+    "success": true,
+    "image_path": "datasets\\testing_images\\super_tester\\20250902_233559.jpg",
+    "pixels_per_mm": 2.124051094055176,
+    "measurement_method": "optimal_multi_method_analysis",
+    "windows": [
+      {
+        "id": 1,
+        "detection_confidence": 0.9647437334060669,
+        "width_mm": 1014.4868774414062,
+        "height_mm": 688.9605712890625,
+        "confidence": 0.9141543747741072,
+        "valid_methods": 2,
+        "method_details": [
+          {
+            "method": "min_area_rect",
+            "width_mm": 1015.04150390625,
+            "height_mm": 689.2489624023438,
+            "confidence": 1.0,
+            "weight": 0.7
+          },
+          {
+            "method": "contour_analysis",
+            "width_mm": 1013.179443359375,
+            "height_mm": 688.2807006835938,
+            "confidence": 0.9897660313001116,
+            "weight": 0.2969298093900335
+          }
+        ],
+        "measurement_method": "weighted_multi_method",
+        "quality_metrics": {
+          "mask_area": 3117514,
+          "mask_perimeter": 7256.014280557632,
+          "rectangularity": 0.7440840906123489,
+          "width_consistency": 0.9990819320140054,
+          "height_consistency": 0.9992971016959674,
+          "overall_quality": 0.9141543747741072,
+          "measurement_methods_count": 2
+        }
+      }
+    ]
+  },
+  {
+    "success": true,
+    "image_path": "datasets\\testing_images\\super_tester\\20250902_234134.jpg",
+    "pixels_per_mm": 1.164909839630127,
+    "measurement_method": "optimal_multi_method_analysis",
+    "windows": [
+      {
+        "id": 1,
+        "detection_confidence": 0.9403876662254333,
+        "width_mm": 1284.2196044921875,
+        "height_mm": 676.4472045898438,
+        "confidence": 0.9026267813370158,
+        "valid_methods": 2,
+        "method_details": [
+          {
+            "method": "min_area_rect",
+            "width_mm": 1284.2196044921875,
+            "height_mm": 676.4472045898438,
+            "confidence": 1.0,
+            "weight": 0.7
+          },
+          {
+            "method": "contour_analysis",
+            "width_mm": 1284.2196044921875,
+            "height_mm": 676.4472045898438,
+            "confidence": 0.9969622886071826,
+            "weight": 0.29908868658215476
+          }
+        ],
+        "measurement_method": "weighted_multi_method",
+        "quality_metrics": {
+          "mask_area": 1177547,
+          "mask_perimeter": 4572.083260297775,
+          "rectangularity": 0.7078803440110477,
+          "width_consistency": 1.0,
+          "height_consistency": 1.0,
+          "overall_quality": 0.9026267813370158,
+          "measurement_methods_count": 2
+        }
+      }
+    ]
+  },
+  {
+    "success": true,
+    "image_path": "datasets\\testing_images\\super_tester\\20250902_234158.jpg",
+    "pixels_per_mm": 1.235117793083191,
+    "measurement_method": "optimal_multi_method_analysis",
+    "windows": [
+      {
+        "id": 1,
+        "detection_confidence": 0.9501826763153076,
+        "width_mm": 1298.6614990234375,
+        "height_mm": 705.1959228515625,
+        "confidence": 0.8995902582293566,
+        "valid_methods": 2,
+        "method_details": [
+          {
+            "method": "min_area_rect",
+            "width_mm": 1298.6614990234375,
+            "height_mm": 705.1959228515625,
+            "confidence": 1.0,
+            "weight": 0.7
+          },
+          {
+            "method": "contour_analysis",
+            "width_mm": 1298.6614990234375,
+            "height_mm": 705.1959228515625,
+            "confidence": 0.9775052895888866,
+            "weight": 0.29325158687666597
+          }
+        ],
+        "measurement_method": "weighted_multi_method",
+        "quality_metrics": {
+          "mask_area": 1368112,
+          "mask_perimeter": 4960.190905213356,
+          "rectangularity": 0.6987707746880696,
+          "width_consistency": 1.0,
+          "height_consistency": 1.0,
+          "overall_quality": 0.8995902582293566,
+          "measurement_methods_count": 2
+        }
+      }
+    ]
+  },
+  {
+    "success": true,
+    "image_path": "datasets\\testing_images\\super_tester\\IMG_4971.jpeg",
+    "pixels_per_mm": 2.441605567932129,
+    "measurement_method": "optimal_multi_method_analysis",
+    "windows": [
+      {
+        "id": 1,
+        "detection_confidence": 0.9476635456085205,
+        "width_mm": 1009.0027465820312,
+        "height_mm": 694.23388671875,
+        "confidence": 0.9061337047948615,
+        "valid_methods": 2,
+        "method_details": [
+          {
+            "method": "min_area_rect",
+            "width_mm": 1007.9432983398438,
+            "height_mm": 695.4440307617188,
+            "confidence": 1.0,
+            "weight": 0.7
+          },
+          {
+            "method": "contour_analysis",
+            "width_mm": 1011.5368041992188,
+            "height_mm": 691.3391723632812,
+            "confidence": 0.9754723425191641,
+            "weight": 0.29264170275574924
+          }
+        ],
+        "measurement_method": "weighted_multi_method",
+        "quality_metrics": {
+          "mask_area": 4070709,
+          "mask_perimeter": 8410.63159275055,
+          "rectangularity": 0.7231405263941306,
+          "width_consistency": 0.9982205783689708,
+          "height_consistency": 0.9970400096214829,
+          "overall_quality": 0.9061337047948615,
+          "measurement_methods_count": 2
+        }
+      }
+    ]
+  },
+  {
+    "success": true,
+    "image_path": "datasets\\testing_images\\super_tester\\IMG_4972.jpeg",
+    "pixels_per_mm": 2.4349822998046875,
+    "measurement_method": "optimal_multi_method_analysis",
+    "windows": [
+      {
+        "id": 1,
+        "detection_confidence": 0.9438891410827637,
+        "width_mm": 1010.6849365234375,
+        "height_mm": 720.3338012695312,
+        "confidence": 0.9117710041152254,
+        "valid_methods": 2,
+        "method_details": [
+          {
+            "method": "min_area_rect",
+            "width_mm": 1010.6849365234375,
+            "height_mm": 720.3338012695312,
+            "confidence": 1.0,
+            "weight": 0.7
+          },
+          {
+            "method": "contour_analysis",
+            "width_mm": 1010.6849365234375,
+            "height_mm": 720.3338012695312,
+            "confidence": 0.9334230877400098,
+            "weight": 0.28002692632200293
+          }
+        ],
+        "measurement_method": "weighted_multi_method",
+        "quality_metrics": {
+          "mask_area": 4033260,
+          "mask_perimeter": 8302.271201491356,
+          "rectangularity": 0.7353130123456761,
+          "width_consistency": 1.0,
+          "height_consistency": 1.0,
+          "overall_quality": 0.9117710041152254,
+          "measurement_methods_count": 2
+        }
+      }
+    ]
+  },
+  {
+    "success": true,
+    "image_path": "datasets\\testing_images\\super_tester\\IMG_4981.jpeg",
+    "pixels_per_mm": 2.513040781021118,
+    "measurement_method": "optimal_multi_method_analysis",
+    "windows": [
+      {
+        "id": 1,
+        "detection_confidence": 0.9498693943023682,
+        "width_mm": 1022.267333984375,
+        "height_mm": 690.7965087890625,
+        "confidence": 0.9187071982289307,
+        "valid_methods": 2,
+        "method_details": [
+          {
+            "method": "min_area_rect",
+            "width_mm": 1022.267333984375,
+            "height_mm": 690.7965087890625,
+            "confidence": 1.0,
+            "weight": 0.7
+          },
+          {
+            "method": "contour_analysis",
+            "width_mm": 1022.267333984375,
+            "height_mm": 690.7965087890625,
+            "confidence": 0.9992371768965367,
+            "weight": 0.299771153068961
+          }
+        ],
+        "measurement_method": "weighted_multi_method",
+        "quality_metrics": {
+          "mask_area": 4460676,
+          "mask_perimeter": 8610.124890446663,
+          "rectangularity": 0.7561215946867921,
+          "width_consistency": 1.0,
+          "height_consistency": 1.0,
+          "overall_quality": 0.9187071982289307,
+          "measurement_methods_count": 2
+        }
+      }
+    ]
+  },
+  {
+    "success": true,
+    "image_path": "datasets\\testing_images\\super_tester\\IMG_4984.jpeg",
+    "pixels_per_mm": 2.32183837890625,
+    "measurement_method": "optimal_multi_method_analysis",
+    "windows": [
+      {
+        "id": 1,
+        "detection_confidence": 0.9676766395568848,
+        "width_mm": 1317.3914794921875,
+        "height_mm": 700.2760620117188,
+        "confidence": 0.8984434802947324,
+        "valid_methods": 2,
+        "method_details": [
+          {
+            "method": "min_area_rect",
+            "width_mm": 1317.539794921875,
+            "height_mm": 700.2760620117188,
+            "confidence": 1.0,
+            "weight": 0.7
+          },
+          {
+            "method": "contour_analysis",
+            "width_mm": 1317.03271484375,
+            "height_mm": 700.2760620117188,
+            "confidence": 0.9647950523496406,
+            "weight": 0.28943851570489215
+          }
+        ],
+        "measurement_method": "weighted_multi_method",
+        "quality_metrics": {
+          "mask_area": 4801551,
+          "mask_perimeter": 9314.080295920372,
+          "rectangularity": 0.6955229339883905,
+          "width_consistency": 0.999807506895807,
+          "height_consistency": 1.0,
+          "overall_quality": 0.8984434802947324,
+          "measurement_methods_count": 2
+        }
+      }
+    ]
+  },
+  {
+    "success": true,
+    "image_path": "datasets\\testing_images\\super_tester\\IMG_4988.jpeg",
+    "pixels_per_mm": 2.580415964126587,
+    "measurement_method": "optimal_multi_method_analysis",
+    "windows": [
+      {
+        "id": 1,
+        "detection_confidence": 0.9701855182647705,
+        "width_mm": 1298.726318359375,
+        "height_mm": 706.0447387695312,
+        "confidence": 0.8940214391948286,
+        "valid_methods": 2,
+        "method_details": [
+          {
+            "method": "min_area_rect",
+            "width_mm": 1298.6278076171875,
+            "height_mm": 706.4752197265625,
+            "confidence": 1.0,
+            "weight": 0.7
+          },
+          {
+            "method": "contour_analysis",
+            "width_mm": 1298.96240234375,
+            "height_mm": 705.0132446289062,
+            "confidence": 0.9740018468625459,
+            "weight": 0.2922005540587638
+          }
+        ],
+        "measurement_method": "weighted_multi_method",
+        "quality_metrics": {
+          "mask_area": 5944408,
+          "mask_perimeter": 10456.25395667553,
+          "rectangularity": 0.6832289005664615,
+          "width_consistency": 0.9998712070925846,
+          "height_consistency": 0.9989642099254396,
+          "overall_quality": 0.8940214391948286,
+          "measurement_methods_count": 2
+        }
+      }
+    ]
+  },
+  {
+    "success": true,
+    "image_path": "datasets\\testing_images\\super_tester\\IMG_5019.jpeg",
+    "pixels_per_mm": 2.557340145111084,
+    "measurement_method": "optimal_multi_method_analysis",
+    "windows": [
+      {
+        "id": 1,
+        "detection_confidence": 0.9537767767906189,
+        "width_mm": 1022.9176025390625,
+        "height_mm": 789.7633666992188,
+        "confidence": 0.8807558943448995,
+        "valid_methods": 2,
+        "method_details": [
+          {
+            "method": "min_area_rect",
+            "width_mm": 1023.1866455078125,
+            "height_mm": 790.3260498046875,
+            "confidence": 1.0,
+            "weight": 0.7
+          },
+          {
+            "method": "contour_analysis",
+            "width_mm": 1022.2628784179688,
+            "height_mm": 788.3939208984375,
+            "confidence": 0.9586660553192379,
+            "weight": 0.28759981659577133
+          }
+        ],
+        "measurement_method": "weighted_multi_method",
+        "quality_metrics": {
+          "mask_area": 5057993,
+          "mask_perimeter": 9935.055035948753,
+          "rectangularity": 0.6439431585388913,
+          "width_consistency": 0.9995483950943647,
+          "height_consistency": 0.9987761294014427,
+          "overall_quality": 0.8807558943448995,
+          "measurement_methods_count": 2
+        }
+      }
+    ]
+  },
+  {
+    "success": true,
+    "image_path": "datasets\\testing_images\\super_tester\\IMG_5021.jpeg",
+    "pixels_per_mm": 2.8339040279388428,
+    "measurement_method": "optimal_multi_method_analysis",
+    "windows": [
+      {
+        "id": 1,
+        "detection_confidence": 0.9560122489929199,
+        "width_mm": 1045.5540771484375,
+        "height_mm": 787.5791625976562,
+        "confidence": 0.9127974564667709,
+        "valid_methods": 2,
+        "method_details": [
+          {
+            "method": "min_area_rect",
+            "width_mm": 1045.5540771484375,
+            "height_mm": 788.3118286132812,
+            "confidence": 1.0,
+            "weight": 0.7
+          },
+          {
+            "method": "contour_analysis",
+            "width_mm": 1045.5540771484375,
+            "height_mm": 785.8417358398438,
+            "confidence": 0.9838374073534678,
+            "weight": 0.29515122220604034
+          }
+        ],
+        "measurement_method": "weighted_multi_method",
+        "quality_metrics": {
+          "mask_area": 6497140,
+          "mask_perimeter": 10504.16355574131,
+          "rectangularity": 0.7399615242983179,
+          "width_consistency": 1.0,
+          "height_consistency": 0.9984308451019951,
+          "overall_quality": 0.9127974564667709,
+          "measurement_methods_count": 2
+        }
+      }
+    ]
+  },
+  {
+    "success": true,
+    "image_path": "datasets\\testing_images\\super_tester\\IMG_5028.jpeg",
+    "pixels_per_mm": 2.662177085876465,
+    "measurement_method": "optimal_multi_method_analysis",
+    "windows": [
+      {
+        "id": 1,
+        "detection_confidence": 0.9695253968238831,
+        "width_mm": 1062.6639404296875,
+        "height_mm": 807.985107421875,
+        "confidence": 0.9193290099158297,
+        "valid_methods": 2,
+        "method_details": [
+          {
+            "method": "min_area_rect",
+            "width_mm": 1062.6639404296875,
+            "height_mm": 807.985107421875,
+            "confidence": 1.0,
+            "weight": 0.7
+          },
+          {
+            "method": "contour_analysis",
+            "width_mm": 1062.6639404296875,
+            "height_mm": 807.985107421875,
+            "confidence": 0.9807905215162681,
+            "weight": 0.2942371564548804
+          }
+        ],
+        "measurement_method": "weighted_multi_method",
+        "quality_metrics": {
+          "mask_area": 5973204,
+          "mask_perimeter": 9951.251868963242,
+          "rectangularity": 0.7579870297474889,
+          "width_consistency": 1.0,
+          "height_consistency": 1.0,
+          "overall_quality": 0.9193290099158297,
+          "measurement_methods_count": 2
+        }
+      }
+    ]
+  }
+]

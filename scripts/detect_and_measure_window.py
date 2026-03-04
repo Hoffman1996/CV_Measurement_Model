@@ -28,8 +28,7 @@ class OptimalMeasurementSystem:
         self.detector_params = utils.get_detector_params()
 
         # Load YOLO model using existing utils function
-        # We pass a dummy test dir since we don't need validation for measurement
-        self.detection_dataset_dir = settings.NIGHT_TIME_IMAGES_DIR_PATH
+        self.detection_dataset_dir = settings.SUPER_TESTER_PATH
         self.yolo_model, self.model_path = utils.load_model_and_validate_paths(
             self.detection_dataset_dir
         )
@@ -564,9 +563,9 @@ def measure_with_optimal_accuracy(image_path, output_dir=None):
 
 
 if __name__ == "__main__":
-
-    output_dir = "measurement_results_night_time_images"
-    images_paths = Path(settings.NIGHT_TIME_IMAGES_DIR_PATH).glob("*.*")
+    start_time = time.time()
+    output_dir = "measurement_results"
+    images_paths = Path(settings.SUPER_TESTER_PATH).glob("*.*")
 
     # Create results file
     results_file = Path(output_dir) / f"mask_measurement_results_it_is_me_MARIO!.json"
@@ -575,7 +574,6 @@ if __name__ == "__main__":
     for image_path in images_paths:
         print("\n\n", "=" * 40, "\n\n")
         print(" === STARTING NEW WINDOW ===\n")
-        start_time = time.time()
         try:
             # Use the enhanced mask-based measurement
             # results = measure_window_with_masks(image_path, output_dir)
@@ -593,11 +591,14 @@ if __name__ == "__main__":
                     print(
                         f"  Dimensions: {window['width_mm']:.1f} x {window['height_mm']:.1f} mm"
                     )
-                    print(f"  Detection Confidence: {window['confidence']:.3f}")
-                    print(
-                        f"  Measurement Confidence: {window['measurement_confidence']:.3f}"
-                    )
-                    print(f"  Mask Area: {window['mask_area_pixels']} pixels")
+                    # print(f"  Detection Confidence: {window['confidence']:.3f}")
+                    # print(
+                    #     f"  Measurement Confidence: {window['measurement_confidence']:.3f}"
+                    # )
+                    # print(f"  Mask Area: {window['mask_area_pixels']} pixels")
+                    print(f"  Detection Confidence: {window['detection_confidence']:.3f}")
+                    print(f"  Measurement Confidence: {window['confidence']:.3f}")
+                    print(f"  Mask Area: {window['quality_metrics']['mask_area']} pixels")
             else:
                 print(f"Measurement failed: {results.get('error', 'Unknown error')}")
 
@@ -616,3 +617,5 @@ if __name__ == "__main__":
         json.dump(utils.convert_numpy_types(all_results), f, indent=2)
 
     print(f"\nResults saved to: {results_file}")
+    end_time = time.time()
+    print(f"Processing time: {end_time - start_time:.2f} seconds")

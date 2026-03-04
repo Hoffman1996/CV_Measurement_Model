@@ -109,7 +109,7 @@ def train_yolo_model():
         save=True,
         plots=True,
         val=True,
-        patience=12,  # Reduced patience for smaller dataset
+        patience=25,  # Reduced patience for smaller dataset
         device=yolo_device,
         optimizer="AdamW",
         lr0=0.0005,  # Conservative learning rate for small dataset

@@ -6,7 +6,7 @@ YOLO_INPUT_SHAPE = (YOLO_INPUT_SIZE, YOLO_INPUT_SIZE)
 MODEL_ARCHITECTURE = "yolo11s-seg.pt"
 MODEL_ARCHITECTURE_NAME = MODEL_ARCHITECTURE[:-3]
 DATA_YAML_FOR_OBB = "datasets/yolo_dataset/data.yaml"
-MODEL_NAME = f"{MODEL_ARCHITECTURE_NAME}_frame_detector2"
+MODEL_NAME = f"{MODEL_ARCHITECTURE_NAME}_frame_detector3"
 TRAINING_EPOCHS = 200
 TRAINING_BATCH_SIZE = 8
 
@@ -47,3 +47,5 @@ LABELED_IMAGES_DIR = "datasets/testing_images/labeled"
 UNLABELED_IMAGES_DIR = "datasets/testing_images/unlabeled"
 NIGHT_TIME_IMAGES_DIR_PATH = "datasets/testing_images/night_time"
 CONVERTED_FROM_OBB_TO_YOLO_DIR = "datasets/converted_from_obb_to_yolo/yolo_dataset"
+BIG_WINDOWS_IMAGES_DIR_PATH = "datasets/testing_images/big_windows"
+SUPER_TESTER_PATH = "datasets/testing_images/super_tester"
