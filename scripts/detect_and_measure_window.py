@@ -568,7 +568,7 @@ if __name__ == "__main__":
     images_paths = Path(settings.SUPER_TESTER_PATH).glob("*.*")
 
     # Create results file
-    results_file = Path(output_dir) / f"mask_measurement_results_it_is_me_MARIO!.json"
+    results_file = Path(output_dir) / f"mask_measurement_results.json"
     all_results = []
 
     for image_path in images_paths:
@@ -591,11 +591,6 @@ if __name__ == "__main__":
                     print(
                         f"  Dimensions: {window['width_mm']:.1f} x {window['height_mm']:.1f} mm"
                     )
-                    # print(f"  Detection Confidence: {window['confidence']:.3f}")
-                    # print(
-                    #     f"  Measurement Confidence: {window['measurement_confidence']:.3f}"
-                    # )
-                    # print(f"  Mask Area: {window['mask_area_pixels']} pixels")
                     print(f"  Detection Confidence: {window['detection_confidence']:.3f}")
                     print(f"  Measurement Confidence: {window['confidence']:.3f}")
                     print(f"  Mask Area: {window['quality_metrics']['mask_area']} pixels")

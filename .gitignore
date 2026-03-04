@@ -23,7 +23,7 @@ desktop.ini
 # Calibration / intermediate data
 *.yaml
 *.json
-!**/mask_measurement_results_it_is_me_MARIO!.json
+!**/mask_measurement_results.json
 *.ckpt
 *.zip
 *.pt

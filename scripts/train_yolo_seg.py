@@ -10,7 +10,7 @@ import config.settings as settings
 def train_yolo_model():
     # === CONFIGURATION ===
     model_arch = settings.MODEL_ARCHITECTURE
-    data_yaml = settings.DATA_YAML_FOR_OBB
+    data_yaml = settings.DATASET_YAML
     imgsz = settings.YOLO_INPUT_SIZE
     epochs = settings.TRAINING_EPOCHS
     batch = settings.TRAINING_BATCH_SIZE
